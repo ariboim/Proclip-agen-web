@@ -61,6 +61,13 @@ export interface GeneratedVideoScript {
   scenes: VideoScene[];
 }
 
+export type CinematicTransition =
+  | 'cross_dissolve'
+  | 'light_leak'
+  | 'smooth_zoom'
+  | 'film_blur'
+  | 'whip_pan';
+
 export interface VideoEditorSettings {
   aspectRatio: AspectRatioType;
   duration: VideoDuration;
@@ -74,6 +81,14 @@ export interface VideoEditorSettings {
   captionFontSize: number;
   visualFilter: 'none' | 'luxury_warm' | 'cinematic_vibrant' | 'bright_modern';
   watermarkEnabled: boolean;
+  // Cinematic realism & transition settings
+  transitionEffect: CinematicTransition; // 'cross_dissolve' | 'light_leak' | 'smooth_zoom' | 'film_blur' | 'whip_pan'
+  transitionDuration?: number; // default 0.75s
+  cameraAngleMotion: 'drone_aerial' | 'gimbal_walkthrough' | 'pedestal_tilt' | 'orbit_arc' | 'ronin_handheld';
+  cinematicLighting: boolean; // Dynamic Sun flare, golden hour rays, ambient floating dust motes
+  autoSubtitleStyle: 'viral_capcut_yellow' | 'tiktok_neon' | 'luxury_gold' | 'clean_white';
+  subtitlePosition: 'bottom' | 'middle' | 'lower_third';
+  audioDucking: boolean; // Auto-duck BGM when narration speaks
 }
 
 export interface TokenState {

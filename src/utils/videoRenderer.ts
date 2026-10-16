@@ -134,20 +134,39 @@ export function renderVideoFrame({
       ctx.filter = 'contrast(103%) brightness(108%) saturate(108%)';
     }
 
-    let scale = 1.05;
+    let scale = 1.08;
     let offsetX = 0;
     let offsetY = 0;
 
+    // Organic steadicam / handheld gimbal micro-drift (shooting langsung di lokasi)
+    const steadicamX = Math.sin(currentTime * 1.8) * 3.5;
+    const steadicamY = Math.cos(currentTime * 1.4) * 2.5;
+
     if (motion.includes('zoom-in') || motion.includes('dramatic')) {
-      scale = 1.0 + progress * 0.15;
+      scale = 1.04 + progress * 0.18;
+      offsetX = (progress - 0.5) * 20;
     } else if (motion.includes('zoom-out')) {
-      scale = 1.15 - progress * 0.14;
+      scale = 1.22 - progress * 0.16;
+      offsetY = (progress - 0.5) * 15;
     } else if (motion.includes('pan-right')) {
-      scale = 1.12;
-      offsetX = (progress - 0.5) * 40;
+      scale = 1.15;
+      offsetX = (progress - 0.5) * 55;
+      offsetY = Math.sin(progress * Math.PI) * 10;
+    } else if (motion.includes('pan-left')) {
+      scale = 1.15;
+      offsetX = (0.5 - progress) * 55;
+      offsetY = Math.sin(progress * Math.PI) * 10;
+    } else if (motion.includes('tilt-up')) {
+      scale = 1.14;
+      offsetY = (progress - 0.5) * 45;
     } else {
-      scale = 1.08 + Math.sin(progress * Math.PI) * 0.05;
+      // Cinematic slow architectural dolly
+      scale = 1.08 + Math.sin(progress * Math.PI) * 0.08;
+      offsetX = (progress - 0.5) * 30;
     }
+
+    offsetX += steadicamX;
+    offsetY += steadicamY;
 
     const imgAspect = img.width / img.height;
     const canvasAspect = width / height;
@@ -166,6 +185,18 @@ export function renderVideoFrame({
     const drawY = (height - drawH) / 2 + offsetY;
 
     ctx.drawImage(img, drawX, drawY, drawW, drawH);
+
+    // Natural Cinematic Golden Sun Glare / Ambient Sunlight Bloom on Location
+    const sunIntensity = 0.18 + Math.sin(progress * Math.PI) * 0.08;
+    const sunX = width * 0.85 + Math.sin(currentTime) * 30;
+    const sunY = height * 0.12 + Math.cos(currentTime) * 20;
+    const sunGrad = ctx.createRadialGradient(sunX, sunY, 10, sunX, sunY, width * 0.7);
+    sunGrad.addColorStop(0, `rgba(255, 240, 200, ${sunIntensity})`);
+    sunGrad.addColorStop(0.35, `rgba(255, 215, 140, ${sunIntensity * 0.45})`);
+    sunGrad.addColorStop(1, 'rgba(255, 200, 100, 0)');
+    ctx.fillStyle = sunGrad;
+    ctx.fillRect(0, 0, width, height);
+
     ctx.restore();
   };
 
@@ -176,11 +207,123 @@ export function renderVideoFrame({
     ctx.fillRect(0, 0, width, height);
   }
 
-  // Crossfade transition in last 0.5s of scene
+  // ==========================================
+  // CUSTOM CINEMATIC TRANSITIONS BETWEEN SCENES
+  // ==========================================
+  const transitionEffect = settings.transitionEffect || 'cross_dissolve';
+  const transitionDuration = settings.transitionDuration || 0.75;
   const remainingInScene = (activeScene.endSec || totalDuration) - currentTime;
-  if (remainingInScene < 0.5 && nextImg && nextImg.complete && nextImg.naturalWidth > 0) {
-    const fadeAlpha = (0.5 - remainingInScene) / 0.5;
-    drawKenBurns(nextImg, 0, 'zoom-in', Math.min(1, Math.max(0, fadeAlpha)));
+
+  if (remainingInScene < transitionDuration && nextImg && nextImg.complete && nextImg.naturalWidth > 0) {
+    const rawT = (transitionDuration - remainingInScene) / transitionDuration;
+    const t = Math.min(1, Math.max(0, rawT)); // 0 to 1
+
+    if (transitionEffect === 'cross_dissolve') {
+      // Smooth S-Curve ease-in-out alpha
+      const fadeAlpha = t * t * (3 - 2 * t);
+      drawKenBurns(nextImg, 0, activeScene.motionStyle || 'zoom-in', fadeAlpha);
+    } else if (transitionEffect === 'light_leak') {
+      // Crossfade base
+      const fadeAlpha = t * t * (3 - 2 * t);
+      drawKenBurns(nextImg, 0, 'zoom-in', fadeAlpha);
+
+      // Anamorphic Warm Light Leak Film Burn Flare (Peak intensity at t = 0.5)
+      const leakIntensity = Math.sin(t * Math.PI);
+      if (leakIntensity > 0.04) {
+        ctx.save();
+        ctx.globalCompositeOperation = 'screen';
+
+        // Sweeping beam of golden-orange and luminous white light
+        const leakX = width * (0.2 + t * 0.7);
+        const leakY = height * (0.3 + Math.sin(t * Math.PI) * 0.35);
+        const leakGrad = ctx.createRadialGradient(leakX, leakY, 15, leakX, leakY, width * 0.85);
+        leakGrad.addColorStop(0, `rgba(255, 255, 255, ${leakIntensity * 0.95})`);
+        leakGrad.addColorStop(0.25, `rgba(255, 210, 120, ${leakIntensity * 0.85})`);
+        leakGrad.addColorStop(0.55, `rgba(249, 115, 22, ${leakIntensity * 0.65})`);
+        leakGrad.addColorStop(0.85, `rgba(225, 29, 72, ${leakIntensity * 0.3})`);
+        leakGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+        ctx.fillStyle = leakGrad;
+        ctx.fillRect(0, 0, width, height);
+
+        // Additional diagonal anamorphic streak across the lens
+        const streakGrad = ctx.createLinearGradient(0, leakY - 70, width, leakY + 70);
+        streakGrad.addColorStop(0, 'rgba(255, 180, 50, 0)');
+        streakGrad.addColorStop(0.5, `rgba(255, 245, 210, ${leakIntensity * 0.75})`);
+        streakGrad.addColorStop(1, 'rgba(255, 180, 50, 0)');
+        ctx.fillStyle = streakGrad;
+        ctx.fillRect(0, leakY - 80, width, 160);
+
+        ctx.restore();
+      }
+    } else if (transitionEffect === 'smooth_zoom') {
+      // Smooth dynamic zoom-through: incoming room zooms through with seamless velocity
+      const fadeAlpha = Math.min(1, t * 1.5);
+      ctx.save();
+      const extraScale = 1.35 - t * 0.3; // Starts scaled up and pulls in
+      const drawCustomZoom = (img: HTMLImageElement, alpha: number) => {
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        const s = extraScale;
+        const imgAspect = img.width / img.height;
+        const canvasAspect = width / height;
+        let dW: number, dH: number;
+        if (imgAspect > canvasAspect) {
+          dH = height * s;
+          dW = dH * imgAspect;
+        } else {
+          dW = width * s;
+          dH = dW / imgAspect;
+        }
+        ctx.drawImage(img, (width - dW) / 2, (height - dH) / 2, dW, dH);
+        ctx.restore();
+      };
+      drawCustomZoom(nextImg, fadeAlpha);
+      ctx.restore();
+    } else if (transitionEffect === 'film_blur') {
+      // Defocus rack-focus: blur peaks at t=0.5
+      const blurAmount = Math.sin(t * Math.PI) * 10;
+      const fadeAlpha = t * t * (3 - 2 * t);
+      ctx.save();
+      if (blurAmount > 0.4) {
+        ctx.filter = `blur(${blurAmount.toFixed(1)}px) brightness(${100 + blurAmount * 2.5}%)`;
+      }
+      drawKenBurns(nextImg, 0, 'zoom-in', fadeAlpha);
+      ctx.restore();
+    } else if (transitionEffect === 'whip_pan') {
+      // Dynamic whip swipe with horizontal motion
+      const easeT = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+      const panOffset = (1 - easeT) * width;
+      const motionBlurStreak = Math.sin(t * Math.PI) * 16;
+
+      ctx.save();
+      const drawPanned = (img: HTMLImageElement, offsetX: number, alpha: number) => {
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        const s = 1.1;
+        const imgAspect = img.width / img.height;
+        const canvasAspect = width / height;
+        let dW: number, dH: number;
+        if (imgAspect > canvasAspect) {
+          dH = height * s;
+          dW = dH * imgAspect;
+        } else {
+          dW = width * s;
+          dH = dW / imgAspect;
+        }
+        ctx.drawImage(img, (width - dW) / 2 + offsetX, (height - dH) / 2, dW, dH);
+        ctx.restore();
+      };
+
+      drawPanned(nextImg, panOffset, 1.0);
+
+      // Directional motion blur streak highlight
+      if (motionBlurStreak > 2) {
+        ctx.fillStyle = `rgba(255, 255, 255, ${0.14 * (motionBlurStreak / 16)})`;
+        ctx.fillRect(0, 0, width, height);
+      }
+      ctx.restore();
+    }
   }
 
   // 2. Cinematic Vignette & Dark Gradients for Crisp Legibility

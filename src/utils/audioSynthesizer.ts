@@ -1,6 +1,7 @@
 /**
  * Audio Synthesizer & Sound Engine for Real Estate Video Generator
  * - Procedural BGM music generator using Web Audio API (Luxury Lo-Fi, Modern Beats, Chill Piano, Ambient)
+ * - Automatic Audio Ducking (lowers BGM during narration so voice is crystal-clear)
  * - Mixed Audio Destination Node for Canvas MediaRecorder Export
  * - Web Speech API fallback for Indonesian Realistic Voiceover
  */
@@ -15,6 +16,8 @@ class SoundEngine {
   private currentInterval: number | null = null;
   private bgmTrack: string = 'luxury_lofi';
   private currentVoiceSource: AudioBufferSourceNode | null = null;
+  private baseBgmVol: number = 0.25;
+  private isDucked: boolean = false;
 
   public init() {
     if (!this.ctx) {
@@ -32,7 +35,7 @@ class SoundEngine {
       this.masterGainNode.connect(this.ctx.destination);
       this.masterGainNode.connect(this.destinationNode);
 
-      this.bgmGainNode.gain.value = 0.25;
+      this.bgmGainNode.gain.value = this.baseBgmVol;
       this.voiceGainNode.gain.value = 1.0;
     }
     if (this.ctx.state === 'suspended') {
@@ -48,12 +51,41 @@ class SoundEngine {
   }
 
   public setVolumes(bgmVol: number, voiceVol: number) {
+    this.baseBgmVol = Math.max(0, Math.min(1, bgmVol));
     if (this.bgmGainNode) {
-      this.bgmGainNode.gain.value = Math.max(0, Math.min(1, bgmVol));
+      if (!this.isDucked) {
+        this.bgmGainNode.gain.value = this.baseBgmVol;
+      } else {
+        this.bgmGainNode.gain.value = this.baseBgmVol * 0.28;
+      }
     }
     if (this.voiceGainNode) {
       this.voiceGainNode.gain.value = Math.max(0, Math.min(1, voiceVol));
     }
+  }
+
+  /**
+   * Automatic Audio Ducking: Smoothly lowers BGM when narration voice is active
+   */
+  public duckBgm(duckingFactor = 0.28) {
+    if (!this.ctx || !this.bgmGainNode) return;
+    this.isDucked = true;
+    const now = this.ctx.currentTime;
+    this.bgmGainNode.gain.cancelScheduledValues(now);
+    this.bgmGainNode.gain.setValueAtTime(this.bgmGainNode.gain.value, now);
+    this.bgmGainNode.gain.exponentialRampToValueAtTime(Math.max(0.001, this.baseBgmVol * duckingFactor), now + 0.2);
+  }
+
+  /**
+   * Smoothly restores BGM back to full energy during pauses or after speech
+   */
+  public unduckBgm() {
+    if (!this.ctx || !this.bgmGainNode) return;
+    this.isDucked = false;
+    const now = this.ctx.currentTime;
+    this.bgmGainNode.gain.cancelScheduledValues(now);
+    this.bgmGainNode.gain.setValueAtTime(this.bgmGainNode.gain.value, now);
+    this.bgmGainNode.gain.linearRampToValueAtTime(this.baseBgmVol, now + 0.4);
   }
 
   // Play a smooth chord progression note
@@ -96,7 +128,6 @@ class SoundEngine {
 
   private playHihat(startTime: number) {
     if (!this.ctx || !this.bgmGainNode) return;
-    // Generate white noise burst
     const bufferSize = this.ctx.sampleRate * 0.04;
     const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
     const data = buffer.getChannelData(0);
@@ -127,22 +158,22 @@ class SoundEngine {
     if (track === 'none') return;
     this.isBgmPlaying = true;
 
-    // Chord progressions for Luxury Real Estate vibe (Fmaj7 - Em7 - Dm7 - Cmaj7)
+    // Rich harmonic chord progressions specifically designed for real estate showcase
     const chords: { [key: string]: number[][] } = {
       luxury_lofi: [
-        [174.61, 220.0, 261.63, 329.63], // Fmaj7
+        [174.61, 220.0, 261.63, 329.63], // Fmaj7 (warm, spacious)
         [164.81, 196.0, 246.94, 293.66], // Em7
         [146.83, 174.61, 220.0, 261.63], // Dm7
         [130.81, 164.81, 196.0, 246.94], // Cmaj7
       ],
       chill_piano: [
-        [261.63, 329.63, 392.0, 493.88], // Cmaj7
-        [220.0, 261.63, 329.63, 392.0], // Am7
+        [261.63, 329.63, 392.0, 493.88], // Cmaj7 (prestigious grand piano)
+        [220.0, 261.63, 329.63, 392.0],  // Am7
         [174.61, 220.0, 261.63, 329.63], // Fmaj7
         [196.0, 246.94, 293.66, 349.23], // G7
       ],
       modern_beats: [
-        [220.0, 261.63, 329.63], // Am
+        [220.0, 261.63, 329.63], // Am (driving, energetic, modern)
         [174.61, 220.0, 261.63], // F
         [261.63, 329.63, 392.0], // C
         [196.0, 246.94, 293.66], // G
@@ -164,18 +195,18 @@ class SoundEngine {
       const chordIndex = Math.floor(step / 4) % trackChords.length;
       const currentChord = trackChords[chordIndex];
 
-      // Play soft pad chord on first beat of bar
+      // Play rich cinematic pad chord on first beat of bar
       if (step % 4 === 0) {
         currentChord.forEach((freq, idx) => {
-          this.playNote(freq, now, 2.2, 'triangle', 0.05 + idx * 0.01);
+          this.playNote(freq, now, 2.2, 'triangle', 0.05 + idx * 0.012);
         });
       }
 
-      // Arpeggio note
+      // Elegant arpeggio note
       const arpFreq = currentChord[step % currentChord.length] * 2;
       this.playNote(arpFreq, now, 0.45, 'sine', 0.04);
 
-      // Drum groove
+      // Drum groove with natural pulse
       if (track === 'modern_beats' || track === 'luxury_lofi') {
         if (step % 4 === 0) this.playKick(now);
         if (step % 2 === 1) this.playHihat(now);
@@ -205,7 +236,7 @@ class SoundEngine {
   }
 
   /**
-   * Play base64 WAV audio from Gemini TTS into both speakers & video recorder destination
+   * Play base64 WAV audio from Gemini TTS with automatic audio ducking
    */
   public async playWavAudio(base64Wav: string): Promise<void> {
     this.init();
@@ -228,10 +259,18 @@ class SoundEngine {
         }
       }
 
+      // Auto-duck BGM while voice is playing!
+      this.duckBgm();
+
       const source = this.ctx.createBufferSource();
       source.buffer = audioBuffer;
       source.connect(this.voiceGainNode);
       this.currentVoiceSource = source;
+
+      source.onended = () => {
+        this.unduckBgm();
+      };
+
       source.start();
     } catch (err) {
       console.warn('WAV decode failed, falling back to Web Speech API', err);
@@ -239,11 +278,14 @@ class SoundEngine {
   }
 
   /**
-   * Speak narration using Web Speech API (Indonesian natural speech)
+   * Speak narration using Web Speech API with automatic audio ducking
    */
   public speakIndonesian(text: string, onEnd?: () => void) {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
     window.speechSynthesis.cancel();
+
+    // Auto-duck BGM when speaking!
+    this.duckBgm();
 
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'id-ID';
@@ -256,14 +298,20 @@ class SoundEngine {
       utterance.voice = idVoice;
     }
 
-    if (onEnd) {
-      utterance.onend = onEnd;
-    }
+    utterance.onend = () => {
+      this.unduckBgm();
+      if (onEnd) onEnd();
+    };
+
+    utterance.onerror = () => {
+      this.unduckBgm();
+    };
 
     window.speechSynthesis.speak(utterance);
   }
 
   public stopAllSpeech() {
+    this.unduckBgm();
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.cancel();
     }

@@ -33,6 +33,11 @@ import {
   ExternalLink,
   Edit3,
   Maximize2,
+  Film,
+  Flame,
+  Zap,
+  Layers,
+  Wand2,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -80,10 +85,17 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
     captionFontSize: 18,
     visualFilter: 'luxury_warm',
     watermarkEnabled: true,
+    transitionEffect: 'light_leak',
+    transitionDuration: 0.75,
+    cameraAngleMotion: 'gimbal_walkthrough',
+    cinematicLighting: true,
+    autoSubtitleStyle: 'viral_capcut_yellow',
+    subtitlePosition: 'bottom',
+    audioDucking: true,
   });
 
   // Active editing tab
-  const [activeTab, setActiveTab] = useState<'script' | 'audio' | 'branding' | 'captions'>('script');
+  const [activeTab, setActiveTab] = useState<'script' | 'transitions' | 'audio' | 'branding' | 'captions'>('transitions');
 
   // Export state
   const [isExporting, setIsExporting] = useState(false);
@@ -194,6 +206,16 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
     const val = parseFloat(e.target.value);
     setCurrentTime(val);
     drawCurrentFrame(val);
+  };
+
+  const handlePreviewTransition = () => {
+    // Jump to 1.0s before the end of Scene 1 so the agent immediately witnesses the cinematic transition
+    const firstSceneEnd = script.scenes?.[0]?.endSec || Math.min(8, totalDuration / 2);
+    const transDur = settings.transitionDuration || 0.75;
+    const targetTime = Math.max(0, firstSceneEnd - transDur - 0.4);
+    setCurrentTime(targetTime);
+    drawCurrentFrame(targetTime);
+    setIsPlaying(true);
   };
 
   // Export video to download
@@ -326,13 +348,30 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
               </div>
             )}
 
-            {/* Platform watermark tag */}
-            <div className="absolute top-3 left-3 px-2 py-1 rounded-md bg-slate-950/70 border border-slate-700/60 text-[10px] font-bold text-slate-300">
-              {settings.aspectRatio === '9:16'
-                ? 'Status WA / Reels / TikTok'
-                : settings.aspectRatio === '1:1'
-                ? 'Feed IG / Facebook'
-                : 'Landscape YouTube'}
+            {/* Platform & Active Transition indicator badges */}
+            <div className="absolute top-3 left-3 right-3 flex items-center justify-between pointer-events-none">
+              <div className="px-2 py-1 rounded-md bg-slate-950/70 border border-slate-700/60 text-[10px] font-bold text-slate-300 backdrop-blur-sm">
+                {settings.aspectRatio === '9:16'
+                  ? 'Status WA / Reels / TikTok'
+                  : settings.aspectRatio === '1:1'
+                  ? 'Feed IG / Facebook'
+                  : 'Landscape YouTube'}
+              </div>
+
+              <div className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-amber-500/25 border border-amber-400/60 text-[10px] font-black text-amber-300 backdrop-blur-sm shadow-md">
+                <Film className="w-3 h-3 text-rose-400" />
+                <span>
+                  {settings.transitionEffect === 'light_leak'
+                    ? 'Light Leak'
+                    : settings.transitionEffect === 'cross_dissolve'
+                    ? 'Cross Dissolve'
+                    : settings.transitionEffect === 'smooth_zoom'
+                    ? 'Smooth Zoom'
+                    : settings.transitionEffect === 'film_blur'
+                    ? 'Film Blur'
+                    : 'Whip Pan'}
+                </span>
+              </div>
             </div>
           </div>
 
@@ -378,16 +417,28 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
                 </button>
               </div>
 
-              {/* Speech test button */}
-              <button
-                type="button"
-                onClick={handlePreviewVoice}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-700/80 hover:bg-slate-700 text-amber-300 text-xs font-semibold transition-colors cursor-pointer"
-                title="Dengarkan Naskah Narasi AI"
-              >
-                <Volume2 className="w-3.5 h-3.5" />
-                <span>Tes Suara AI</span>
-              </button>
+              {/* Speech & Transition quick test buttons */}
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={handlePreviewTransition}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 text-xs font-semibold transition-colors cursor-pointer"
+                  title="Loncat ke 1 detik sebelum pergantian adegan untuk melihat efek transisi langsung"
+                >
+                  <Film className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Tes Transisi</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handlePreviewVoice}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-700/80 hover:bg-slate-700 text-amber-300 text-xs font-semibold transition-colors cursor-pointer"
+                  title="Dengarkan Naskah Narasi AI"
+                >
+                  <Volume2 className="w-3.5 h-3.5" />
+                  <span>Tes Suara</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -405,7 +456,21 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
               }`}
             >
               <Type className="w-3.5 h-3.5" />
-              Naskah & Narasi AI
+              Naskah AI
+            </button>
+            <button
+              onClick={() => setActiveTab('transitions')}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                activeTab === 'transitions'
+                  ? 'bg-amber-500 text-slate-950 shadow-md'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Film className="w-3.5 h-3.5 text-rose-400" />
+              Transisi Sinematik
+              <span className="px-1.5 py-0.5 rounded-md bg-rose-500 text-white text-[9px] font-black uppercase tracking-wider">
+                PRO
+              </span>
             </button>
             <button
               onClick={() => setActiveTab('audio')}
@@ -531,6 +596,211 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
                     </div>
                   ))}
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB: TRANSISI SINEMATIK (CUSTOM CINEMATIC TRANSITIONS) */}
+          {activeTab === 'transitions' && (
+            <div className="space-y-5 p-5 rounded-2xl bg-slate-800/40 border border-slate-700/60 animate-in fade-in duration-150">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    <Film className="w-4 h-4 text-amber-400" />
+                    Pilihan Efek Transisi Sinematik Antar Adegan
+                    <span className="px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40 text-[10px] font-black uppercase">
+                      PRO High-End
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Transisi visual kelas bioskop membuat video promosi properti tampak hidup dan berkelas, bukan sekadar potongan foto statis.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handlePreviewTransition}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/20 via-rose-500/20 to-amber-500/20 border border-amber-400/50 hover:border-amber-300 text-amber-300 hover:text-white text-xs font-bold transition-all cursor-pointer whitespace-nowrap shadow-md shadow-amber-950/40"
+                >
+                  <Play className="w-3.5 h-3.5 fill-current" />
+                  <span>Preview Efek Transisi</span>
+                </button>
+              </div>
+
+              {/* Grid of Transition Effects */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {[
+                  {
+                    id: 'cross_dissolve',
+                    name: 'Cross Dissolve',
+                    subtitle: 'Smooth S-Curve Blend',
+                    badge: 'Elegan & Alami',
+                    badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+                    desc: 'Pergantian visual halus dengan kurva S-Curve sinematik. Sangat seimbang dan nyaman untuk tur properti elegan.',
+                    icon: Layers,
+                  },
+                  {
+                    id: 'light_leak',
+                    name: 'Cinematic Light Leak',
+                    subtitle: 'Luxury Anamorphic Film Burn',
+                    badge: 'Direkomendasikan (VIP)',
+                    badgeColor: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
+                    desc: 'Bias kilatan cahaya matahari emas menyapu lensa seperti kamera film 35mm. Memberikan aura hunian mewah & prestisius.',
+                    icon: Flame,
+                  },
+                  {
+                    id: 'smooth_zoom',
+                    name: 'Smooth Zoom Through',
+                    subtitle: 'Architectural Fly-Through',
+                    badge: 'Viral Reels & TikTok',
+                    badgeColor: 'bg-sky-500/20 text-sky-300 border-sky-500/30',
+                    desc: 'Kamera meluncur dinamis menembus frame langsung masuk ke ruangan berikutnya layaknya drone FPV atau gimbal pro.',
+                    icon: Zap,
+                  },
+                  {
+                    id: 'film_blur',
+                    name: 'Defocus Film Blur',
+                    subtitle: 'Cinema Rack-Focus Bokeh',
+                    badge: 'Artistik & Cozy',
+                    badgeColor: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
+                    desc: 'Defocus blur optik lembut yang mengalihkan perhatian penonton ke sudut ruangan baru secara artistik.',
+                    icon: Wand2,
+                  },
+                  {
+                    id: 'whip_pan',
+                    name: 'Dynamic Whip Pan',
+                    subtitle: 'High-Speed Steadicam Whip',
+                    badge: 'Enerjik & Cepat',
+                    badgeColor: 'bg-orange-500/20 text-orange-300 border-orange-500/30',
+                    desc: 'Sapuan horizontal kilat berenergi tinggi dengan tarikan motion blur modern, cocok untuk video promo hook cepat.',
+                    icon: Film,
+                  },
+                ].map((item) => {
+                  const Icon = item.icon;
+                  const isSelected = settings.transitionEffect === item.id;
+                  return (
+                    <div
+                      key={item.id}
+                      onClick={() => {
+                        setSettings({ ...settings, transitionEffect: item.id as any });
+                      }}
+                      className={`p-3.5 rounded-2xl border transition-all cursor-pointer relative overflow-hidden group ${
+                        isSelected
+                          ? 'bg-gradient-to-br from-amber-500/15 via-slate-900 to-amber-950/20 border-amber-400 shadow-lg shadow-amber-500/10'
+                          : 'bg-slate-900/90 border-slate-700/80 hover:border-slate-500 text-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+                              isSelected
+                                ? 'bg-amber-400 text-slate-950'
+                                : 'bg-slate-800 text-amber-400 group-hover:bg-slate-700'
+                            }`}
+                          >
+                            <Icon className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <span className="text-xs font-bold text-white block">
+                              {item.name}
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-mono">
+                              {item.subtitle}
+                            </span>
+                          </div>
+                        </div>
+
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${item.badgeColor}`}
+                        >
+                          {item.badge}
+                        </span>
+                      </div>
+
+                      <p className="text-[11px] text-slate-400 leading-relaxed">
+                        {item.desc}
+                      </p>
+
+                      {isSelected && (
+                        <div className="mt-2.5 pt-2 border-t border-amber-500/20 flex items-center justify-between text-[11px]">
+                          <span className="text-amber-300 font-semibold flex items-center gap-1">
+                            <Check className="w-3.5 h-3.5 text-amber-400" />
+                            Transisi Sedang Digunakan
+                          </span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handlePreviewTransition();
+                            }}
+                            className="text-amber-400 hover:underline font-bold cursor-pointer"
+                          >
+                            Putar Efek Transisi →
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Transition Duration / Speed Controls */}
+              <div className="p-4 rounded-2xl bg-slate-900 border border-slate-700 space-y-3">
+                <div className="flex items-center justify-between text-xs font-semibold">
+                  <span className="text-slate-200">
+                    Durasi / Kecepatan Transisi Antar Adegan:
+                  </span>
+                  <span className="text-amber-400 font-bold font-mono">
+                    {settings.transitionDuration || 0.75} Detik
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { val: 0.5, label: '0.5s (Cepat & Ringkas)' },
+                    { val: 0.75, label: '0.75s (Standar Sinematik)' },
+                    { val: 1.0, label: '1.0s (Dramatis Slow)' },
+                  ].map((speed) => (
+                    <button
+                      key={speed.val}
+                      type="button"
+                      onClick={() =>
+                        setSettings({ ...settings, transitionDuration: speed.val })
+                      }
+                      className={`py-2 px-2.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                        (settings.transitionDuration || 0.75) === speed.val
+                          ? 'bg-amber-500/20 border-amber-400 text-amber-300'
+                          : 'bg-slate-950 border-slate-700 text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      {speed.label}
+                    </button>
+                  ))}
+                </div>
+
+                <input
+                  type="range"
+                  min="0.3"
+                  max="1.4"
+                  step="0.05"
+                  value={settings.transitionDuration || 0.75}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      transitionDuration: parseFloat(e.target.value),
+                    })
+                  }
+                  className="w-full accent-amber-500 cursor-pointer"
+                />
+              </div>
+
+              {/* Architectural Video Tip */}
+              <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-2.5 text-xs text-amber-200">
+                <Sparkles className="w-4 h-4 flex-shrink-0 text-amber-400 mt-0.5" />
+                <p className="leading-relaxed">
+                  <strong>Tips Videografer Properti Pro:</strong> Untuk video listing rumah mewah & villa, gunakan <em>Cinematic Light Leak</em> dengan durasi 0.75s untuk menonjolkan bias cahaya matahari alami di ruang tamu dan taman.
+                </p>
               </div>
             </div>
           )}

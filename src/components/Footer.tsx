@@ -1,5 +1,6 @@
 import React from 'react';
 import { Video, MessageCircle, Heart, Phone, ShieldCheck, Mail } from 'lucide-react';
+import { IndoDigitalLogo } from './IndoDigitalLogo';
 
 interface FooterProps {
   onScrollToSection: (id: string) => void;
@@ -86,11 +87,10 @@ export const Footer: React.FC<FooterProps> = ({
                 </li>
                 <li>
                   <button
-                    onClick={onOpenAdmin}
-                    className="text-amber-400 hover:underline transition-colors cursor-pointer flex items-center gap-1 font-semibold"
+                    onClick={() => onScrollToSection('pricing')}
+                    className="hover:text-amber-400 transition-colors cursor-pointer"
                   >
-                    <ShieldCheck className="w-3.5 h-3.5" />
-                    Dashboard Admin & Worksheet
+                    Harga & Simulasi Token
                   </button>
                 </li>
               </ul>
@@ -116,8 +116,54 @@ export const Footer: React.FC<FooterProps> = ({
             </div>
           </div>
 
-          <div className="pt-8 border-t border-slate-900/80 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-slate-500">
-            <p>© {new Date().getFullYear()} PropertiClip AI. Hak Cipta Dilindungi.</p>
+          {/* INDO DIGITAL POWERED-BY BRANDING SECTION */}
+          <div className="pt-10 pb-8 border-t border-slate-900/80 flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
+              {/* Indo Digital Logo Card */}
+              <div className="bg-white p-3 sm:p-3.5 rounded-2xl shadow-xl shadow-sky-950/30 border border-slate-200/80 transition-all hover:scale-105 inline-block">
+                <IndoDigitalLogo height={44} theme="card" />
+              </div>
+
+              <div>
+                <span className="text-[11px] uppercase tracking-wider text-slate-400 block font-semibold">
+                  Official Technology & AI Infrastructure
+                </span>
+                <p className="text-sm font-extrabold text-white font-['Outfit'] tracking-wide">
+                  powered by <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-blue-500 font-black">Indo Digital</span>
+                </p>
+                <span className="text-[11px] text-amber-400 font-semibold font-mono">
+                  powered by Indo Digitalcopyright @2026
+                </span>
+              </div>
+            </div>
+
+            {/* Caption Pill & Eye-Catching Discreet Admin Trigger */}
+            <div className="flex flex-col items-center md:items-end gap-2">
+              <div className="flex items-center gap-2">
+                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-900 border border-slate-800 text-xs font-mono text-slate-300 shadow-inner">
+                  <span className="font-bold text-sky-400">powered by Indo Digitalcopyright @2026</span>
+                </div>
+
+                {/* Eye-catching glowing highlight indicator for admin access */}
+                <button
+                  onClick={onOpenAdmin}
+                  title="Akses Terproteksi"
+                  aria-label="Akses Terproteksi"
+                  className="relative p-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/30 border border-amber-400/60 shadow-md shadow-amber-500/20 text-amber-400 hover:text-white transition-all hover:scale-110 cursor-pointer animate-pulse"
+                >
+                  <span className="animate-ping absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-amber-400"></span>
+                  <ShieldCheck className="w-4 h-4 text-amber-400" />
+                </button>
+              </div>
+
+              <span className="text-[10px] text-slate-500">
+                Solusi transformasi digital properti & multimedia kecerdasan buatan
+              </span>
+            </div>
+          </div>
+
+          <div className="pt-6 border-t border-slate-900/80 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-slate-500">
+            <p>© 2026 PropertiClip AI. powered by Indo Digitalcopyright @2026. Hak Cipta Dilindungi.</p>
             <p className="flex items-center gap-1">
               Dirancang khusus untuk memajukan industri agen properti di Indonesia
             </p>

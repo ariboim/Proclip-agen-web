@@ -23,31 +23,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <>
-      {/* EYE-CATCHING TOP ADMIN ACCESS BAR */}
-      <div className="bg-gradient-to-r from-amber-950/90 via-slate-950 to-amber-950/90 border-b border-amber-500/40 py-2 px-3 sm:px-6 relative z-50 shadow-md">
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <span className="relative flex h-2.5 w-2.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-400"></span>
-            </span>
-            <span className="px-2 py-0.5 rounded-md bg-amber-500/25 border border-amber-400 text-[10px] font-black text-amber-300 uppercase tracking-wider">
-              🔐 PORTAL ADMIN & WORKSHEET
-            </span>
-            <span className="hidden md:inline text-xs text-amber-100 font-medium">
-              Kontrol Token Unlimited, Status Blokir & Database Agen Terdaftar
-            </span>
-          </div>
 
-          <button
-            onClick={onOpenAdmin}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-400 via-orange-500 to-amber-500 hover:from-amber-300 hover:to-orange-400 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/30 transition-all hover:scale-105 cursor-pointer uppercase tracking-wide border border-amber-200"
-          >
-            <ShieldCheck className="w-4 h-4 stroke-[2.5]" />
-            <span>Klik Akses Admin Disini</span>
-          </button>
-        </div>
-      </div>
 
       <header className="sticky top-0 z-40 w-full backdrop-blur-md bg-slate-950/90 border-b border-slate-800/80 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4">
@@ -104,14 +80,21 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Right Action Badges: Eye-Catching Admin Button + Token Counter + Agent Profile + WA CTA */}
           <div className="flex items-center gap-2.5 sm:gap-3">
-            {/* EYE-CATCHING HIGHLIGHTED ADMIN BUTTON (Always Visible) */}
+            {/* EYE-CATCHING HIGHLIGHT / TANDA AKSES ADMIN (Menu Tidak Terlihat Secara Tulisan, tapi Memiliki Highlight Eye-Catching) */}
             <button
               onClick={onOpenAdmin}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/20 via-orange-500/20 to-amber-500/20 border-2 border-amber-400 hover:border-amber-300 text-amber-300 hover:text-white font-black text-xs shadow-md shadow-amber-500/25 transition-all hover:scale-105 cursor-pointer animate-pulse"
-              title="Klik untuk membuka Login Admin & Worksheet Database"
+              className="relative p-2 sm:p-2.5 rounded-xl bg-gradient-to-r from-amber-500/20 via-orange-500/30 to-amber-500/20 border-2 border-amber-400 hover:border-amber-300 text-amber-300 hover:text-white shadow-lg shadow-amber-500/30 transition-all hover:scale-110 cursor-pointer group flex items-center justify-center animate-pulse"
+              title="Akses Terproteksi"
+              aria-label="Akses Terproteksi"
             >
-              <ShieldCheck className="w-4 h-4 text-amber-400" />
-              <span className="tracking-wide">AKSES ADMIN</span>
+              {/* Eye-catching pulsating beacon ring */}
+              <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-400 border border-slate-900"></span>
+              </span>
+
+              {/* Eye-catching glowing crest icon */}
+              <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400 group-hover:rotate-12 transition-transform drop-shadow-[0_0_8px_rgba(251,191,36,0.8)]" />
             </button>
 
             {/* Token Credit Badge */}

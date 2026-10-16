@@ -627,6 +627,25 @@ export const PropertyForm: React.FC<PropertyFormProps> = ({
 
         {/* SUBMIT BUTTON WITH TOKEN COST */}
         <div className="pt-4 border-t border-slate-800">
+          {tokens.isBlocked && (
+            <div className="mb-4 p-4 rounded-2xl bg-rose-500/15 border border-rose-500/40 text-rose-300 text-xs sm:text-sm flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 flex-shrink-0 text-rose-400" />
+                <span>
+                  <strong>Akun Anda Sedang Ditangguhkan:</strong> Pembuatan video dinonaktifkan oleh Admin. Silakan hubungi CS untuk verifikasi akun.
+                </span>
+              </div>
+              <a
+                href="https://wa.me/6289673686625?text=Halo%20Admin%2C%20akun%20saya%20terblokir%20di%20PropertiClip%20AI%2C%20mohon%20bantuannya."
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs whitespace-nowrap"
+              >
+                Hubungi Admin (0896-7368-6625)
+              </a>
+            </div>
+          )}
+
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="text-xs text-slate-400">
               Biaya pembuatan: <span className="font-bold text-amber-400">1 Token</span>{' '}
@@ -639,14 +658,18 @@ export const PropertyForm: React.FC<PropertyFormProps> = ({
 
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || tokens.isBlocked}
               className={`py-4 px-8 rounded-2xl font-bold text-sm shadow-xl flex items-center justify-center gap-2.5 transition-all cursor-pointer ${
-                isLoading
+                tokens.isBlocked
+                  ? 'bg-rose-950/50 text-rose-400 border border-rose-500/40 cursor-not-allowed'
+                  : isLoading
                   ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
                   : 'bg-gradient-to-r from-amber-500 via-orange-500 to-rose-600 hover:from-amber-400 hover:to-rose-500 text-white shadow-amber-500/25 hover:scale-[1.02]'
               }`}
             >
-              {isLoading ? (
+              {tokens.isBlocked ? (
+                <span>Akun Ditangguhkan (Hubungi Admin)</span>
+              ) : isLoading ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   <span>{loadingStep || 'AI Sedang Meracik Video...'}</span>

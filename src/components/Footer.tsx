@@ -5,12 +5,14 @@ interface FooterProps {
   onScrollToSection: (id: string) => void;
   onOpenUpgrade: () => void;
   onOpenProfile: () => void;
+  onOpenAdmin: () => void;
 }
 
 export const Footer: React.FC<FooterProps> = ({
   onScrollToSection,
   onOpenUpgrade,
   onOpenProfile,
+  onOpenAdmin,
 }) => {
   const waContactUrl =
     'https://wa.me/6289673686625?text=Halo%20Admin%20PropertiClip%2C%20saya%20agen%20properti%20dan%20ingin%20konsultasi%20layanan%20video%20generator.';
@@ -80,6 +82,15 @@ export const Footer: React.FC<FooterProps> = ({
                     className="hover:text-amber-400 transition-colors cursor-pointer"
                   >
                     Fitur & Keunggulan
+                  </button>
+                </li>
+                <li>
+                  <button
+                    onClick={onOpenAdmin}
+                    className="text-amber-400 hover:underline transition-colors cursor-pointer flex items-center gap-1 font-semibold"
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    Dashboard Admin & Worksheet
                   </button>
                 </li>
               </ul>

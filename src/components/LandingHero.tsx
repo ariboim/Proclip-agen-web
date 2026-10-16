@@ -19,6 +19,7 @@ interface LandingHeroProps {
   onStartGenerator: () => void;
   onOpenUpgrade: () => void;
   onOpenProfile: () => void;
+  onOpenAdmin: () => void;
 }
 
 export const LandingHero: React.FC<LandingHeroProps> = ({
@@ -26,6 +27,7 @@ export const LandingHero: React.FC<LandingHeroProps> = ({
   onStartGenerator,
   onOpenUpgrade,
   onOpenProfile,
+  onOpenAdmin,
 }) => {
   const waContactUrl =
     'https://wa.me/6289673686625?text=Halo%20Admin%20PropertiClip%2C%20saya%20agen%20properti%20dan%20tertarik%20konsultasi%20layanan%20video%20generator%20properti.';
@@ -79,8 +81,20 @@ export const LandingHero: React.FC<LandingHeroProps> = ({
             </a>
           </div>
 
+          {/* EYE-CATCHING PROMINENT ADMIN BADGE */}
+          <div className="pt-2">
+            <button
+              onClick={onOpenAdmin}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-amber-500/15 hover:bg-amber-500/25 border-2 border-amber-400/80 text-amber-300 hover:text-white transition-all text-xs font-bold cursor-pointer shadow-lg shadow-amber-500/20 hover:scale-105"
+            >
+              <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+              <ShieldCheck className="w-4 h-4 text-amber-400" />
+              <span>Menu Pengelola: Akses Dashboard Admin & Worksheet Database (user: admin | pass: 8888)</span>
+            </button>
+          </div>
+
           {/* Social Proof Stats */}
-          <div className="pt-8 grid grid-cols-2 sm:grid-cols-4 gap-4 max-w-3xl mx-auto">
+          <div className="pt-6 grid grid-cols-2 sm:grid-cols-4 gap-4 max-w-3xl mx-auto">
             <div className="p-3 rounded-2xl bg-slate-900/60 border border-slate-800">
               <span className="text-xl sm:text-2xl font-black text-white font-['Outfit'] block">2.400+</span>
               <span className="text-xs text-slate-400">Agen Terdaftar</span>

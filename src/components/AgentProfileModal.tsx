@@ -72,6 +72,19 @@ export const AgentProfileModal: React.FC<AgentProfileModalProps> = ({
 
     saveAgentProfile(updated);
     onSaveProfile(updated);
+
+    // Sync to backend worksheet database
+    fetch('/api/register-agent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: updated.name,
+        whatsapp: updated.whatsapp,
+        agencyName: updated.agencyName,
+        agencyLogoUrl: updated.agencyLogoUrl,
+      }),
+    }).catch((err) => console.warn('Failed to sync agent to server db', err));
+
     setSavedSuccess(true);
     setTimeout(() => {
       setSavedSuccess(false);

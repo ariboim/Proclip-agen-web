@@ -22,6 +22,8 @@ import { UpgradeModal } from './components/UpgradeModal';
 import { PricingSection } from './components/PricingSection';
 import { TestimonialsFAQ } from './components/TestimonialsFAQ';
 import { Footer } from './components/Footer';
+import { AdminDashboard } from './components/AdminDashboard';
+import { AdminPinModal } from './components/AdminPinModal';
 import confetti from 'canvas-confetti';
 
 // Intelligent Fallback Script Generator tailored to property data
@@ -200,11 +202,17 @@ export default function App() {
   const [agent, setAgent] = useState<AgentProfile>(DEFAULT_AGENT_PROFILE);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
+  // Admin Dashboard Mode state
+  const [isAdminView, setIsAdminView] = useState(false);
+  const [isAdminPinModalOpen, setIsAdminPinModalOpen] = useState(false);
+  const [blockedReason, setBlockedReason] = useState<string | null>(null);
+
   // Token credit state
   const [tokens, setTokens] = useState<TokenState>({
     remainingTokens: 5,
     totalUsed: 0,
     isUnlimitedVip: false,
+    isBlocked: false,
   });
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
 
@@ -227,13 +235,53 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState('');
 
-  // Initialize from LocalStorage
+  // Check live status from server database (VIP activation, Block status, Token updates)
+  const checkLiveAgentStatus = async (wa: string) => {
+    if (!wa) return;
+    try {
+      const res = await fetch('/api/user-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ whatsapp: wa }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.exists) {
+          setTokens((prev) => {
+            const updated = {
+              ...prev,
+              isUnlimitedVip: data.isUnlimitedVip,
+              isBlocked: !!data.isBlocked,
+              remainingTokens:
+                data.isUnlimitedVip ? 9999 : (data.remainingTokens !== undefined ? data.remainingTokens : prev.remainingTokens),
+              totalUsed: data.totalUsed !== undefined ? data.totalUsed : prev.totalUsed,
+            };
+            saveTokenState(updated);
+            return updated;
+          });
+          if (data.isBlocked) {
+            setBlockedReason(data.blockedReason || 'Akun ditangguhkan oleh admin');
+          } else {
+            setBlockedReason(null);
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to check live status', e);
+    }
+  };
+
+  // Initialize from LocalStorage & check server DB
   useEffect(() => {
     const storedProfile = getStoredAgentProfile();
     setAgent(storedProfile);
 
     const storedTokens = getStoredTokenState();
     setTokens(storedTokens);
+
+    if (storedProfile.whatsapp) {
+      checkLiveAgentStatus(storedProfile.whatsapp);
+    }
   }, []);
 
   // Update script whenever agent info changes
@@ -242,6 +290,9 @@ export default function App() {
       ...prev,
       closingCtaText: `Hubungi WhatsApp ${agent.name}: ${agent.whatsapp || '089673686625'}`,
     }));
+    if (agent.whatsapp) {
+      checkLiveAgentStatus(agent.whatsapp);
+    }
   }, [agent]);
 
   // Scroll to anchor sections smoothly
@@ -257,6 +308,12 @@ export default function App() {
 
   // Generate Video with Gemini AI
   const handleGenerateVideo = async () => {
+    // Check if blocked by admin
+    if (tokens.isBlocked) {
+      alert('Akun Anda saat ini ditangguhkan / diblokir oleh Admin. Silakan hubungi CS di WhatsApp: 0896-7368-6625 untuk aktivasi kembali.');
+      return;
+    }
+
     // Check tokens
     const { success, state: updatedTokens } = useOneToken();
     if (!success) {
@@ -302,12 +359,26 @@ export default function App() {
         if (json.success && json.data) {
           setGeneratedScript(json.data);
         } else {
-          // Use intelligent fallback
           setGeneratedScript(generateIntelligentScript(formData, agent));
         }
       } else {
         setGeneratedScript(generateIntelligentScript(formData, agent));
       }
+
+      // Sync updated video count & tokens to server database
+      fetch('/api/register-agent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: agent.name,
+          whatsapp: agent.whatsapp,
+          agencyName: agent.agencyName,
+          agencyLogoUrl: agent.agencyLogoUrl,
+          remainingTokens: updatedTokens.remainingTokens,
+          isUnlimitedVip: updatedTokens.isUnlimitedVip,
+          totalUsed: updatedTokens.totalUsed,
+        }),
+      }).catch((e) => console.warn('Failed to sync token usage', e));
 
       setLoadingStep('Menyiapkan audio visual studio...');
       await new Promise((r) => setTimeout(r, 600));
@@ -315,7 +386,6 @@ export default function App() {
       setActiveView('studio');
       setIsLoading(false);
 
-      // Scroll to studio
       window.scrollTo({ top: 320, behavior: 'smooth' });
 
       try {
@@ -380,6 +450,16 @@ export default function App() {
     }
   };
 
+  // If Admin Dashboard is active, render the full admin portal
+  if (isAdminView) {
+    return (
+      <AdminDashboard
+        onBackToApp={() => setIsAdminView(false)}
+        onRefreshCurrentAgentStatus={() => checkLiveAgentStatus(agent.whatsapp)}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-['Plus_Jakarta_Sans'] selection:bg-amber-500 selection:text-slate-950">
       {/* Top Sticky Navbar */}
@@ -389,7 +469,27 @@ export default function App() {
         onOpenProfile={() => setIsProfileModalOpen(true)}
         onOpenUpgrade={() => setIsUpgradeModalOpen(true)}
         onScrollToSection={handleScrollToSection}
+        onOpenAdmin={() => setIsAdminPinModalOpen(true)}
       />
+
+      {/* Global Blocked Notice Banner if account is blocked by Admin */}
+      {tokens.isBlocked && (
+        <div className="bg-rose-900/90 border-b border-rose-700/80 text-rose-100 px-4 py-3 text-xs sm:text-sm font-semibold flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2 max-w-4xl mx-auto">
+            <span>
+              ⚠️ <strong>PEMBERITAHUAN ADMIN:</strong> Akun agen Anda ({agent.whatsapp}) saat ini berstatus <strong>DIBLOKIR</strong> {blockedReason ? `(${blockedReason})` : ''}. Pembuatan video dinonaktifkan sementara.
+            </span>
+          </div>
+          <a
+            href="https://wa.me/6289673686625?text=Halo%20Admin%2C%20akun%20saya%20terblokir%20di%20PropertiClip%20AI%2C%20mohon%20bantuannya."
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-3 py-1 bg-white text-rose-900 rounded-lg font-bold text-xs hover:bg-rose-100 transition-colors whitespace-nowrap"
+          >
+            Hubungi Admin (0896-7368-6625)
+          </a>
+        </div>
+      )}
 
       <main className="flex-1">
         {/* Landing Hero Section */}
@@ -400,6 +500,7 @@ export default function App() {
           }}
           onOpenUpgrade={() => setIsUpgradeModalOpen(true)}
           onOpenProfile={() => setIsProfileModalOpen(true)}
+          onOpenAdmin={() => setIsAdminPinModalOpen(true)}
         />
 
         {/* Studio Generator Area */}
@@ -450,6 +551,7 @@ export default function App() {
         onScrollToSection={handleScrollToSection}
         onOpenUpgrade={() => setIsUpgradeModalOpen(true)}
         onOpenProfile={() => setIsProfileModalOpen(true)}
+        onOpenAdmin={() => setIsAdminPinModalOpen(true)}
       />
 
       {/* Agent Registration & Branding Modal */}
@@ -457,7 +559,10 @@ export default function App() {
         isOpen={isProfileModalOpen}
         onClose={() => setIsProfileModalOpen(false)}
         currentProfile={agent}
-        onSaveProfile={(updated) => setAgent(updated)}
+        onSaveProfile={(updated) => {
+          setAgent(updated);
+          checkLiveAgentStatus(updated.whatsapp);
+        }}
       />
 
       {/* VIP Unlimited Upgrade Modal */}
@@ -466,6 +571,13 @@ export default function App() {
         onClose={() => setIsUpgradeModalOpen(false)}
         tokens={tokens}
         onTokensUpdated={(newTokens) => setTokens(newTokens)}
+      />
+
+      {/* Admin PIN Authentication Modal */}
+      <AdminPinModal
+        isOpen={isAdminPinModalOpen}
+        onClose={() => setIsAdminPinModalOpen(false)}
+        onSuccess={() => setIsAdminView(true)}
       />
     </div>
   );

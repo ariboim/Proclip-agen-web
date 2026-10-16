@@ -25,6 +25,8 @@ const ai = new GoogleGenAI({
   },
 });
 
+import { db } from './server-db.js';
+
 // Endpoint: AI Script Generator specifically for Indonesian Property Agents
 app.post('/api/generate-script', async (req, res) => {
   try {
@@ -202,6 +204,149 @@ app.post('/api/generate-tts', async (req, res) => {
       success: false,
       error: error.message || 'Gagal memproses suara AI TTS',
     });
+  }
+});
+
+// Endpoint: Register or update agent profile
+app.post('/api/register-agent', (req, res) => {
+  try {
+    const { name, whatsapp, agencyName, agencyLogoUrl, remainingTokens, isUnlimitedVip, totalUsed } = req.body;
+    if (!name || !whatsapp) {
+      return res.status(400).json({ success: false, error: 'Nama dan nomor WhatsApp wajib diisi' });
+    }
+    const user = db.registerOrUpdateUser({
+      name,
+      whatsapp,
+      agencyName,
+      agencyLogoUrl,
+      remainingTokens,
+      isUnlimitedVip,
+      totalUsed,
+    });
+    return res.json({ success: true, user });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Endpoint: Check agent live status (VIP or Blocked status check)
+app.post('/api/user-status', (req, res) => {
+  try {
+    const { whatsapp } = req.body;
+    if (!whatsapp) {
+      return res.status(400).json({ success: false, error: 'WhatsApp required' });
+    }
+    const user = db.getUserByWa(whatsapp);
+    if (!user) {
+      return res.json({ success: true, exists: false });
+    }
+    return res.json({
+      success: true,
+      exists: true,
+      isUnlimitedVip: user.isUnlimitedVip,
+      isBlocked: user.isBlocked,
+      blockedReason: user.blockedReason,
+      remainingTokens: user.remainingTokens,
+      totalUsed: user.totalUsed,
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Endpoint: Get all users and stats for Admin Dashboard Worksheet
+app.get('/api/admin/users', (req, res) => {
+  try {
+    const users = db.getAllUsers();
+    const stats = db.getStats();
+    return res.json({ success: true, users, stats });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Endpoint: Toggle VIP Unlimited Token
+app.post('/api/admin/users/:id/toggle-vip', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { isVip } = req.body;
+    const updated = db.toggleVip(id, isVip);
+    if (!updated) {
+      return res.status(404).json({ success: false, error: 'User tidak ditemukan' });
+    }
+    return res.json({ success: true, user: updated, stats: db.getStats() });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Endpoint: Toggle Block / Unblock User
+app.post('/api/admin/users/:id/toggle-block', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { isBlocked, reason } = req.body;
+    const updated = db.toggleBlock(id, isBlocked, reason);
+    if (!updated) {
+      return res.status(404).json({ success: false, error: 'User tidak ditemukan' });
+    }
+    return res.json({ success: true, user: updated, stats: db.getStats() });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Endpoint: Update Token Balance manually
+app.post('/api/admin/users/:id/update-tokens', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { remainingTokens } = req.body;
+    const updated = db.updateTokens(id, parseInt(remainingTokens, 10));
+    if (!updated) {
+      return res.status(404).json({ success: false, error: 'User tidak ditemukan' });
+    }
+    return res.json({ success: true, user: updated, stats: db.getStats() });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Endpoint: Add user manually from admin worksheet
+app.post('/api/admin/users', (req, res) => {
+  try {
+    const { name, whatsapp, agencyName, remainingTokens = 5, isUnlimitedVip = false, notes } = req.body;
+    if (!name || !whatsapp) {
+      return res.status(400).json({ success: false, error: 'Nama dan nomor WhatsApp wajib diisi' });
+    }
+    const now = new Date().toISOString().replace('T', ' ').slice(0, 16);
+    const user = db.addUser({
+      name,
+      whatsapp,
+      agencyName: agencyName || 'Independent',
+      registeredAt: now,
+      remainingTokens: isUnlimitedVip ? 9999 : remainingTokens,
+      totalUsed: 0,
+      isUnlimitedVip: !!isUnlimitedVip,
+      isBlocked: false,
+      notes: notes || 'Ditambahkan manual oleh admin',
+      lastActive: now,
+    });
+    return res.json({ success: true, user, stats: db.getStats() });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Endpoint: Delete user
+app.delete('/api/admin/users/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const deleted = db.deleteUser(id);
+    if (!deleted) {
+      return res.status(404).json({ success: false, error: 'User tidak ditemukan' });
+    }
+    return res.json({ success: true, stats: db.getStats() });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, error: error.message });
   }
 });
 

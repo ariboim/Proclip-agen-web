@@ -80,4 +80,29 @@ export interface TokenState {
   remainingTokens: number;
   totalUsed: number;
   isUnlimitedVip: boolean;
+  isBlocked?: boolean;
+}
+
+export interface AdminUserRecord {
+  id: string;
+  name: string;
+  whatsapp: string;
+  agencyName: string;
+  agencyLogoUrl?: string;
+  registeredAt: string;
+  remainingTokens: number;
+  totalUsed: number;
+  isUnlimitedVip: boolean;
+  isBlocked: boolean;
+  blockedReason?: string;
+  notes?: string;
+  lastActive?: string;
+}
+
+export interface AdminStats {
+  totalUsers: number;
+  totalVip: number;
+  totalDemo: number;
+  totalBlocked: number;
+  totalVideosGenerated: number;
 }

@@ -590,10 +590,13 @@ export async function exportVideoWithAudio({
   offscreenCanvas.height = height;
 
   // Prepare audio stream from soundEngine
-  if (onProgress) onProgress(15, 'Menyiapkan audio BGM & narasi suara...');
+  if (onProgress) onProgress(15, 'Menyiapkan audio BGM & narasi suara room tour...');
   soundEngine.init();
   soundEngine.setVolumes(settings.bgmVolume, settings.voiceVolume);
   soundEngine.startBgm(settings.bgmTrack);
+  if (settings.voiceVolume > 0 && script.fullScript) {
+    soundEngine.speakNaturalRoomTour(script.fullScript, propertyData.voiceName || 'Kore').catch(() => {});
+  }
 
   // Get video stream from canvas
   const videoStream = offscreenCanvas.captureStream(30); // 30 FPS
@@ -638,6 +641,7 @@ export async function exportVideoWithAudio({
   return new Promise((resolve, reject) => {
     recorder.onstop = () => {
       soundEngine.stopBgm();
+      soundEngine.stopAllSpeech();
       const outputBlob = new Blob(recordedChunks, { type: chosenMime });
       if (onProgress) onProgress(100, 'Selesai! Video siap diunduh.');
       resolve(outputBlob);
@@ -645,6 +649,7 @@ export async function exportVideoWithAudio({
 
     recorder.onerror = (err) => {
       soundEngine.stopBgm();
+      soundEngine.stopAllSpeech();
       reject(err);
     };
 

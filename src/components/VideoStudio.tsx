@@ -13,7 +13,6 @@ import {
   getResolutionForAspect,
   exportVideoWithAudio,
 } from '../utils/videoRenderer';
-import { soundEngine } from '../utils/audioSynthesizer';
 import {
   Play,
   Pause,
@@ -38,7 +37,9 @@ import {
   Zap,
   Layers,
   Wand2,
+  Square,
 } from 'lucide-react';
+import { soundEngine, VOICE_PERSONAS } from '../utils/audioSynthesizer';
 import confetti from 'canvas-confetti';
 
 interface VideoStudioProps {
@@ -103,6 +104,11 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
   const [exportStatusText, setExportStatusText] = useState('');
   const [downloadSuccessModal, setDownloadSuccessModal] = useState(false);
 
+  // Natural Room Tour Voiceover state
+  const [isVoiceLoading, setIsVoiceLoading] = useState(false);
+  const [isVoicePlaying, setIsVoicePlaying] = useState(false);
+  const [narrationEnabled, setNarrationEnabled] = useState(true);
+
   // Preloaded images cache
   const imagesCacheRef = useRef<Map<string, HTMLImageElement>>(new Map());
   const logoImageRef = useRef<HTMLImageElement | null>(null);
@@ -158,7 +164,7 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
     drawCurrentFrame(currentTime);
   }, [currentTime, settings, script, propertyData, agent]);
 
-  // Playback timer loop
+  // Playback timer loop with Natural Room Tour Voice Synchronization
   useEffect(() => {
     let animFrame: number;
     let lastTimestamp: number | null = null;
@@ -167,6 +173,16 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
       soundEngine.init();
       soundEngine.setVolumes(settings.bgmVolume, settings.voiceVolume);
       soundEngine.startBgm(settings.bgmTrack);
+
+      // Trigger synchronized Natural Room Tour voiceover when playing from start
+      if (narrationEnabled && settings.voiceVolume > 0 && currentTime < 0.6) {
+        setIsVoicePlaying(true);
+        soundEngine
+          .speakNaturalRoomTour(script.fullScript, propertyData.voiceName || 'Kore', () => {
+            setIsVoicePlaying(false);
+          })
+          .catch(() => setIsVoicePlaying(false));
+      }
 
       const loop = (timestamp: number) => {
         if (!lastTimestamp) lastTimestamp = timestamp;
@@ -178,6 +194,8 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
           if (next >= totalDuration) {
             setIsPlaying(false);
             soundEngine.stopBgm();
+            soundEngine.stopAllSpeech();
+            setIsVoicePlaying(false);
             return 0;
           }
           return next;
@@ -189,13 +207,26 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
       animFrame = requestAnimationFrame(loop);
     } else {
       soundEngine.stopBgm();
+      soundEngine.stopAllSpeech();
+      setIsVoicePlaying(false);
     }
 
     return () => {
       if (animFrame) cancelAnimationFrame(animFrame);
       soundEngine.stopBgm();
+      soundEngine.stopAllSpeech();
+      setIsVoicePlaying(false);
     };
-  }, [isPlaying, totalDuration, settings.bgmTrack, settings.bgmVolume, settings.voiceVolume]);
+  }, [
+    isPlaying,
+    totalDuration,
+    settings.bgmTrack,
+    settings.bgmVolume,
+    settings.voiceVolume,
+    narrationEnabled,
+    script.fullScript,
+    propertyData.voiceName,
+  ]);
 
   const handleTogglePlay = () => {
     setIsPlaying(!isPlaying);
@@ -205,12 +236,16 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
     setIsPlaying(false);
     setCurrentTime(0);
     soundEngine.stopBgm();
+    soundEngine.stopAllSpeech();
+    setIsVoicePlaying(false);
     drawCurrentFrame(0);
   };
 
   const handleScrub = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = parseFloat(e.target.value);
     setCurrentTime(val);
+    soundEngine.stopAllSpeech();
+    setIsVoicePlaying(false);
     drawCurrentFrame(val);
   };
 
@@ -279,9 +314,55 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
     }
   };
 
-  // Preview Voice Speech
-  const handlePreviewVoice = () => {
-    soundEngine.speakIndonesian(script.fullScript);
+  // Preview Natural Room Tour Voice Speech
+  const handlePreviewVoice = async () => {
+    if (isVoicePlaying) {
+      soundEngine.stopAllSpeech();
+      setIsVoicePlaying(false);
+      return;
+    }
+    setIsVoiceLoading(true);
+    setIsVoicePlaying(true);
+    try {
+      await soundEngine.speakNaturalRoomTour(script.fullScript, propertyData.voiceName || 'Kore', () => {
+        setIsVoicePlaying(false);
+      });
+    } catch (e) {
+      console.warn('Voice preview error', e);
+      setIsVoicePlaying(false);
+    } finally {
+      setIsVoiceLoading(false);
+    }
+  };
+
+  // Dedicated test for individual voiceover actor sample
+  const [testingVoiceId, setTestingVoiceId] = useState<string | null>(null);
+  const [isLoadingVoiceId, setIsLoadingVoiceId] = useState<string | null>(null);
+
+  const handleTestSpecificVoice = async (voiceId: string) => {
+    if (testingVoiceId === voiceId) {
+      soundEngine.stopAllSpeech();
+      setTestingVoiceId(null);
+      setIsLoadingVoiceId(null);
+      return;
+    }
+
+    soundEngine.stopAllSpeech();
+    setIsVoicePlaying(false);
+    setIsLoadingVoiceId(voiceId);
+    setTestingVoiceId(voiceId);
+
+    try {
+      await soundEngine.previewVoicePersona(voiceId, () => {
+        setTestingVoiceId((prev) => (prev === voiceId ? null : prev));
+        setIsLoadingVoiceId((prev) => (prev === voiceId ? null : prev));
+      });
+    } catch (err) {
+      console.warn('Voice audition error', err);
+      setTestingVoiceId(null);
+    } finally {
+      setIsLoadingVoiceId((prev) => (prev === voiceId ? null : prev));
+    }
   };
 
   const waShareUrl = `https://wa.me/6289673686625?text=Halo%20Admin%20PropertiClip%2C%20saya%20sudah%20generate%20video%20promosi%20properti%20untuk%20listing%20saya%20dan%20tertarik%20konsultasi%20strategi%20posting%20iklan.`;
@@ -299,7 +380,7 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
             Studio Editor Video Promosi Properti
           </h2>
           <p className="text-xs sm:text-sm text-slate-600 mt-1">
-            Sesuaikan naskah, volume audio, posisi logo agency, atau langsung unduh video siap posting.
+            Sesuaikan naskah narasi natural room tour, backsound musik, transisi sinematik, atau langsung unduh video siap posting.
           </p>
         </div>
 
@@ -395,10 +476,10 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
           </div>
 
           {/* Player Controls Bar */}
-          <div className="w-full max-w-[420px] mt-4 p-4 rounded-2xl bg-slate-800/80 border border-slate-700 space-y-3">
+          <div className="w-full max-w-[420px] mt-4 p-4 rounded-2xl bg-white border-2 border-orange-200/90 shadow-md space-y-3">
             {/* Scrubber slider */}
             <div className="flex items-center gap-3">
-              <span className="text-[11px] font-mono text-slate-400 w-10 text-right">
+              <span className="text-[11px] font-mono text-slate-700 font-bold w-10 text-right">
                 {currentTime.toFixed(1)}s
               </span>
               <input
@@ -408,20 +489,20 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
                 step="0.1"
                 value={currentTime}
                 onChange={handleScrub}
-                className="flex-1 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                className="flex-1 h-2 bg-orange-100 rounded-lg appearance-none cursor-pointer accent-orange-500"
               />
-              <span className="text-[11px] font-mono text-slate-400 w-10">
+              <span className="text-[11px] font-mono text-slate-700 font-bold w-10">
                 {totalDuration}s
               </span>
             </div>
 
             {/* Buttons: Play/Pause, Reset, Voice Preview */}
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={handleTogglePlay}
-                  className="p-2.5 rounded-xl bg-amber-500 text-slate-950 font-bold hover:bg-amber-400 transition-colors cursor-pointer"
+                  className="p-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold transition-all shadow-xs cursor-pointer"
                   title={isPlaying ? 'Pause' : 'Putar Video'}
                 >
                   {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
@@ -429,7 +510,7 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
                 <button
                   type="button"
                   onClick={handleReset}
-                  className="p-2.5 rounded-xl bg-slate-700 text-slate-300 hover:text-white hover:bg-slate-600 transition-colors cursor-pointer"
+                  className="p-2.5 rounded-xl bg-orange-50 text-orange-950 border border-orange-200 hover:bg-orange-100 transition-colors cursor-pointer"
                   title="Mulai Ulang dari Awal"
                 >
                   <RotateCcw className="w-4 h-4" />
@@ -441,23 +522,45 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
                 <button
                   type="button"
                   onClick={handlePreviewTransition}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 text-xs font-semibold transition-colors cursor-pointer"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-50 hover:bg-orange-100 text-orange-950 border border-orange-300 text-xs font-bold transition-colors cursor-pointer shadow-2xs"
                   title="Loncat ke 1 detik sebelum pergantian adegan untuk melihat efek transisi langsung"
                 >
-                  <Film className="w-3.5 h-3.5 text-amber-400" />
+                  <Film className="w-3.5 h-3.5 text-orange-600" />
                   <span>Tes Transisi</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={handlePreviewVoice}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-700/80 hover:bg-slate-700 text-amber-300 text-xs font-semibold transition-colors cursor-pointer"
-                  title="Dengarkan Naskah Narasi AI"
+                  disabled={isVoiceLoading}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-2xs ${
+                    isVoicePlaying
+                      ? 'bg-rose-500 text-white animate-pulse'
+                      : 'bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white'
+                  }`}
+                  title="Dengarkan Narasi Suara Room Tour Alami"
                 >
                   <Volume2 className="w-3.5 h-3.5" />
-                  <span>Tes Suara</span>
+                  <span>
+                    {isVoiceLoading
+                      ? 'Memuat Suara...'
+                      : isVoicePlaying
+                      ? 'Stop Suara'
+                      : 'Tes Suara Room Tour'}
+                  </span>
                 </button>
               </div>
+            </div>
+
+            {/* Voice Status Indicator Note */}
+            <div className="pt-2 border-t border-orange-100 flex items-center justify-between text-[11px] text-slate-600">
+              <span className="flex items-center gap-1 font-medium">
+                <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                Mode: <strong className="text-orange-900 font-bold">Natural Room Tour</strong>
+              </span>
+              <span className="text-[10px] bg-orange-100 text-orange-900 px-2 py-0.5 rounded font-bold">
+                Auto-Ducking BGM Aktif
+              </span>
             </div>
           </div>
         </div>
@@ -467,92 +570,195 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
           {/* Navigation Tabs */}
           <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-orange-50/80 border border-orange-200 overflow-x-auto shadow-xs">
             <button
-              onClick={() => setActiveTab('script')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                activeTab === 'script'
-                  ? 'bg-orange-500 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-orange-100/60'
-              }`}
-            >
-              <Type className="w-3.5 h-3.5" />
-              Naskah AI
-            </button>
-            <button
+              type="button"
               onClick={() => setActiveTab('transitions')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
                 activeTab === 'transitions'
                   ? 'bg-orange-500 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-orange-100/60'
+                  : 'text-slate-600 hover:text-orange-950 hover:bg-orange-100/60'
               }`}
             >
-              <Film className="w-3.5 h-3.5 text-rose-500" />
-              Transisi Sinematik
-              <span className="px-1.5 py-0.5 rounded-md bg-rose-500 text-white text-[9px] font-black uppercase tracking-wider">
-                PRO
-              </span>
+              <Film className="w-3.5 h-3.5" />
+              <span>Transisi Sinematik</span>
             </button>
+
             <button
+              type="button"
+              onClick={() => setActiveTab('script')}
+              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                activeTab === 'script'
+                  ? 'bg-orange-500 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-orange-950 hover:bg-orange-100/60'
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Naskah Room Tour</span>
+            </button>
+
+            <button
+              type="button"
               onClick={() => setActiveTab('audio')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
                 activeTab === 'audio'
                   ? 'bg-orange-500 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-orange-100/60'
+                  : 'text-slate-600 hover:text-orange-950 hover:bg-orange-100/60'
               }`}
             >
               <Music className="w-3.5 h-3.5" />
-              Musik & Audio
+              <span>Musik & Suara</span>
             </button>
+
             <button
+              type="button"
+              onClick={() => setActiveTab('captions')}
+              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                activeTab === 'captions'
+                  ? 'bg-orange-500 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-orange-950 hover:bg-orange-100/60'
+              }`}
+            >
+              <Type className="w-3.5 h-3.5" />
+              <span>Subtitle & Teks</span>
+            </button>
+
+            <button
+              type="button"
               onClick={() => setActiveTab('branding')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
                 activeTab === 'branding'
                   ? 'bg-orange-500 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-orange-100/60'
+                  : 'text-slate-600 hover:text-orange-950 hover:bg-orange-100/60'
               }`}
             >
               <Shield className="w-3.5 h-3.5" />
-              Logo & Watermark
-            </button>
-            <button
-              onClick={() => setActiveTab('captions')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                activeTab === 'captions'
-                  ? 'bg-orange-500 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-orange-100/60'
-              }`}
-            >
-              <Palette className="w-3.5 h-3.5" />
-              Subtitle & Filter
+              <span>Branding & Logo</span>
             </button>
           </div>
 
-          {/* TAB 1: EDIT NASKAH & NARASI AI */}
+          {/* TAB 1: EDIT NASKAH & NARASI NATURAL ROOM TOUR */}
           {activeTab === 'script' && (
-            <div className="space-y-4 p-5 rounded-2xl bg-orange-50/40 border border-orange-200/80 animate-in fade-in duration-150 shadow-xs">
-              <div className="flex items-center justify-between">
+            <div className="space-y-5 p-5 rounded-2xl bg-orange-50/50 border border-orange-200/90 animate-in fade-in duration-150 shadow-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-orange-200">
                 <div>
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-orange-100 border border-orange-300 text-orange-900 text-[11px] font-bold mb-1">
+                    <Sparkles className="w-3 h-3 text-orange-600" />
+                    Format: Natural Room Tour Walkthrough
+                  </div>
                   <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-orange-600" />
-                    Edit Teks Naskah Narasi AI
+                    Naskah Narasi Suara Room Tour
                   </h3>
                   <p className="text-xs text-slate-600">
-                    Bebas sesuaikan kata-kata agar semakin pas dengan gaya bicara Anda.
+                    Narasi mengalir santai seperti host properti mengajak penonton keliling ruangan (bukan bacaan AI robot).
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={onRegenerateScript}
-                  disabled={isRegenerating}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-100 hover:bg-orange-200 text-orange-950 border border-orange-300 text-xs font-bold transition-colors cursor-pointer shadow-xs"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-orange-600" />
-                  {isRegenerating ? 'Meracik...' : 'Regenerate Naskah AI'}
-                </button>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handlePreviewVoice}
+                    disabled={isVoiceLoading}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs ${
+                      isVoicePlaying
+                        ? 'bg-rose-500 text-white'
+                        : 'bg-white hover:bg-orange-100 text-orange-950 border border-orange-300'
+                    }`}
+                  >
+                    <Volume2 className="w-3.5 h-3.5 text-orange-600" />
+                    <span>{isVoiceLoading ? 'Memuat Suara...' : isVoicePlaying ? 'Stop Suara' : 'Tes Suara Host'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={onRegenerateScript}
+                    disabled={isRegenerating}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold transition-colors cursor-pointer shadow-xs"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    {isRegenerating ? 'Meracik...' : 'Regenerate Naskah'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Natural Room Tour Voice Persona Selector with Test Sound Buttons */}
+              <div className="p-3.5 rounded-2xl bg-white border border-orange-200 shadow-2xs space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                    <Volume2 className="w-4 h-4 text-orange-600" />
+                    Pilihan Karakter Suara Host Room Tour:
+                  </span>
+                  <span className="text-[10px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full font-bold border border-emerald-200">
+                    ✓ Intonasi Ramah & Alami
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+                  {VOICE_PERSONAS.map((v) => {
+                    const isSelected = (propertyData.voiceName || 'Kore') === v.id;
+                    const isTesting = testingVoiceId === v.id;
+                    const isLoading = isLoadingVoiceId === v.id;
+
+                    return (
+                      <div
+                        key={v.id}
+                        onClick={() => {
+                          onUpdatePropertyData({ ...propertyData, voiceName: v.id });
+                          soundEngine.stopAllSpeech();
+                          setIsVoicePlaying(false);
+                        }}
+                        className={`p-2.5 rounded-xl border-2 transition-all cursor-pointer flex flex-col justify-between gap-2 ${
+                          isSelected
+                            ? 'bg-orange-50 border-orange-500 shadow-xs ring-2 ring-orange-400/20'
+                            : 'bg-orange-50/40 hover:bg-orange-50/80 border-orange-200 text-slate-800'
+                        }`}
+                      >
+                        {/* Name + Button Test Suara beside name */}
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="text-xs font-bold text-slate-900 truncate">
+                            {v.name}
+                          </span>
+
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleTestSpecificVoice(v.id);
+                            }}
+                            className={`px-2 py-0.5 rounded-lg text-[10px] font-bold flex items-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
+                              isTesting
+                                ? 'bg-rose-500 text-white animate-pulse'
+                                : isSelected
+                                ? 'bg-orange-500 hover:bg-orange-600 text-white'
+                                : 'bg-orange-100 hover:bg-orange-200 text-orange-950 border border-orange-300'
+                            }`}
+                            title={`Tes suara ${v.name}`}
+                          >
+                            {isLoading ? (
+                              <div className="w-2.5 h-2.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                            ) : isTesting ? (
+                              <Square className="w-2.5 h-2.5 fill-current" />
+                            ) : (
+                              <Volume2 className="w-2.5 h-2.5" />
+                            )}
+                            <span>{isLoading ? '...' : isTesting ? 'Stop' : 'Tes Suara'}</span>
+                          </button>
+                        </div>
+
+                        <div className="text-[10px] text-slate-500 leading-tight">
+                          {v.role}
+                        </div>
+
+                        <div className="text-[10px] font-bold text-orange-700 flex items-center gap-1 pt-1 border-t border-orange-200/60">
+                          {isSelected ? '✓ Terpilih' : 'Klik untuk Pilih'}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
 
               {/* Headline Hook */}
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                <label className="block text-xs font-bold text-slate-800 mb-1.5">
                   Catchy Headline Hook (Pemikat Penonton 3 Detik Pertama)
                 </label>
                 <input
@@ -561,14 +767,17 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
                   onChange={(e) =>
                     onUpdateScript({ ...script, catchyHeadline: e.target.value })
                   }
-                  className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white text-xs font-semibold focus:ring-2 focus:ring-amber-500"
+                  className="w-full px-3.5 py-2.5 bg-white border border-orange-300 rounded-xl text-slate-900 text-xs font-semibold focus:ring-2 focus:ring-orange-500 shadow-2xs"
                 />
               </div>
 
               {/* Full Narration Textarea */}
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Naskah Narasi Lengkap (Dibacakan AI)
+                <label className="block text-xs font-bold text-slate-800 mb-1.5 flex items-center justify-between">
+                  <span>Naskah Narasi Lengkap (Dibacakan Host Room Tour)</span>
+                  <span className="text-[10px] text-slate-500 font-normal">
+                    {script.fullScript.split(/\s+/).filter(Boolean).length} kata
+                  </span>
                 </label>
                 <textarea
                   rows={4}
@@ -576,28 +785,28 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
                   onChange={(e) =>
                     onUpdateScript({ ...script, fullScript: e.target.value })
                   }
-                  className="w-full p-3.5 bg-slate-900 border border-slate-700 rounded-xl text-white text-xs leading-relaxed focus:ring-2 focus:ring-amber-500"
+                  className="w-full p-3.5 bg-white border border-orange-300 rounded-xl text-slate-900 text-xs leading-relaxed focus:ring-2 focus:ring-orange-500 shadow-2xs"
                 />
               </div>
 
               {/* Scene breakdown overview */}
               <div>
-                <span className="text-xs font-semibold text-slate-300 block mb-2">
-                  Struktur Adegan ({script.scenes?.length || 0} Scene Sinkron):
+                <span className="text-xs font-bold text-slate-800 block mb-2">
+                  Struktur Adegan Tur Ruangan ({script.scenes?.length || 0} Scene Sinkron):
                 </span>
-                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
                   {(script.scenes || []).map((scene, idx) => (
                     <div
                       key={idx}
-                      className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800 text-xs flex items-start justify-between gap-3"
+                      className="p-3 rounded-xl bg-white border border-orange-200 text-xs flex items-start justify-between gap-3 shadow-2xs"
                     >
                       <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="font-bold text-amber-400">Scene #{idx + 1}</span>
-                          <span className="text-[10px] text-slate-400 font-mono">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <span className="font-bold text-orange-600">Scene #{idx + 1}</span>
+                          <span className="text-[10px] text-slate-500 font-mono">
                             ({scene.startSec}s - {scene.endSec}s)
                           </span>
-                          <span className="text-[10px] bg-slate-800 text-sky-300 px-1.5 py-0.5 rounded">
+                          <span className="text-[10px] bg-orange-100 text-orange-900 font-bold px-2 py-0.5 rounded border border-orange-200">
                             {scene.photoTarget}
                           </span>
                         </div>
@@ -609,7 +818,7 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
                             newScenes[idx] = { ...scene, spokenText: e.target.value };
                             onUpdateScript({ ...script, scenes: newScenes });
                           }}
-                          className="w-full bg-slate-950 px-2 py-1 rounded text-slate-200 text-xs border border-slate-700"
+                          className="w-full bg-orange-50/40 px-3 py-1.5 rounded-lg text-slate-800 text-xs border border-orange-200 focus:bg-white focus:ring-2 focus:ring-orange-500"
                         />
                       </div>
                     </div>
@@ -621,17 +830,17 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
 
           {/* TAB: TRANSISI SINEMATIK (CUSTOM CINEMATIC TRANSITIONS) */}
           {activeTab === 'transitions' && (
-            <div className="space-y-5 p-5 rounded-2xl bg-slate-800/40 border border-slate-700/60 animate-in fade-in duration-150">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="space-y-5 p-5 rounded-2xl bg-orange-50/50 border border-orange-200/90 animate-in fade-in duration-150 shadow-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-orange-200">
                 <div>
-                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                    <Film className="w-4 h-4 text-amber-400" />
+                  <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                    <Film className="w-4 h-4 text-orange-600" />
                     Pilihan Efek Transisi Sinematik Antar Adegan
-                    <span className="px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40 text-[10px] font-black uppercase">
+                    <span className="px-2 py-0.5 rounded-full bg-orange-100 text-orange-900 border border-orange-300 text-[10px] font-black uppercase">
                       PRO High-End
                     </span>
                   </h3>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-slate-600">
                     Transisi visual kelas bioskop membuat video promosi properti tampak hidup dan berkelas, bukan sekadar potongan foto statis.
                   </p>
                 </div>
@@ -639,7 +848,7 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
                 <button
                   type="button"
                   onClick={handlePreviewTransition}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/20 via-rose-500/20 to-amber-500/20 border border-amber-400/50 hover:border-amber-300 text-amber-300 hover:text-white text-xs font-bold transition-all cursor-pointer whitespace-nowrap shadow-md shadow-amber-950/40"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold transition-all cursor-pointer whitespace-nowrap shadow-xs"
                 >
                   <Play className="w-3.5 h-3.5 fill-current" />
                   <span>Preview Efek Transisi</span>
@@ -703,10 +912,10 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
                       onClick={() => {
                         setSettings({ ...settings, transitionEffect: item.id as any });
                       }}
-                      className={`p-3.5 rounded-2xl border transition-all cursor-pointer relative overflow-hidden group ${
+                      className={`p-3.5 rounded-2xl border-2 transition-all cursor-pointer relative overflow-hidden group shadow-2xs ${
                         isSelected
-                          ? 'bg-gradient-to-br from-amber-500/15 via-slate-900 to-amber-950/20 border-amber-400 shadow-lg shadow-amber-500/10'
-                          : 'bg-slate-900/90 border-slate-700/80 hover:border-slate-500 text-slate-300'
+                          ? 'bg-orange-50 border-orange-500 shadow-md text-slate-900'
+                          : 'bg-white border-orange-200 hover:border-orange-300 text-slate-700'
                       }`}
                     >
                       <div className="flex items-start justify-between gap-2 mb-2">
@@ -714,17 +923,17 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
                           <div
                             className={`w-8 h-8 rounded-xl flex items-center justify-center ${
                               isSelected
-                                ? 'bg-amber-400 text-slate-950'
-                                : 'bg-slate-800 text-amber-400 group-hover:bg-slate-700'
+                                ? 'bg-orange-500 text-white'
+                                : 'bg-orange-100 text-orange-600 group-hover:bg-orange-200'
                             }`}
                           >
                             <Icon className="w-4 h-4" />
                           </div>
                           <div>
-                            <span className="text-xs font-bold text-white block">
+                            <span className="text-xs font-bold text-slate-900 block">
                               {item.name}
                             </span>
-                            <span className="text-[10px] text-slate-400 font-mono">
+                            <span className="text-[10px] text-slate-500 font-mono">
                               {item.subtitle}
                             </span>
                           </div>
@@ -737,14 +946,14 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
                         </span>
                       </div>
 
-                      <p className="text-[11px] text-slate-400 leading-relaxed">
+                      <p className="text-[11px] text-slate-600 leading-relaxed">
                         {item.desc}
                       </p>
 
                       {isSelected && (
-                        <div className="mt-2.5 pt-2 border-t border-amber-500/20 flex items-center justify-between text-[11px]">
-                          <span className="text-amber-300 font-semibold flex items-center gap-1">
-                            <Check className="w-3.5 h-3.5 text-amber-400" />
+                        <div className="mt-2.5 pt-2 border-t border-orange-200 flex items-center justify-between text-[11px]">
+                          <span className="text-orange-700 font-bold flex items-center gap-1">
+                            <Check className="w-3.5 h-3.5 text-orange-600" />
                             Transisi Sedang Digunakan
                           </span>
                           <button
@@ -753,7 +962,7 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
                               e.stopPropagation();
                               handlePreviewTransition();
                             }}
-                            className="text-amber-400 hover:underline font-bold cursor-pointer"
+                            className="text-orange-600 hover:text-orange-700 hover:underline font-bold cursor-pointer"
                           >
                             Putar Efek Transisi →
                           </button>
@@ -765,12 +974,12 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
               </div>
 
               {/* Transition Duration / Speed Controls */}
-              <div className="p-4 rounded-2xl bg-slate-900 border border-slate-700 space-y-3">
-                <div className="flex items-center justify-between text-xs font-semibold">
-                  <span className="text-slate-200">
+              <div className="p-4 rounded-2xl bg-white border border-orange-200 shadow-2xs space-y-3">
+                <div className="flex items-center justify-between text-xs font-bold text-slate-900">
+                  <span>
                     Durasi / Kecepatan Transisi Antar Adegan:
                   </span>
-                  <span className="text-amber-400 font-bold font-mono">
+                  <span className="text-orange-600 font-mono">
                     {settings.transitionDuration || 0.75} Detik
                   </span>
                 </div>
@@ -787,10 +996,10 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
                       onClick={() =>
                         setSettings({ ...settings, transitionDuration: speed.val })
                       }
-                      className={`py-2 px-2.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                      className={`py-2 px-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
                         (settings.transitionDuration || 0.75) === speed.val
-                          ? 'bg-amber-500/20 border-amber-400 text-amber-300'
-                          : 'bg-slate-950 border-slate-700 text-slate-400 hover:text-slate-200'
+                          ? 'bg-orange-500 border-orange-500 text-white shadow-xs'
+                          : 'bg-orange-50/60 border-orange-200 text-slate-700 hover:bg-orange-100'
                       }`}
                     >
                       {speed.label}
@@ -810,13 +1019,13 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
                       transitionDuration: parseFloat(e.target.value),
                     })
                   }
-                  className="w-full accent-amber-500 cursor-pointer"
+                  className="w-full h-2 bg-orange-100 rounded-lg appearance-none cursor-pointer accent-orange-500"
                 />
               </div>
 
               {/* Architectural Video Tip */}
-              <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-2.5 text-xs text-amber-200">
-                <Sparkles className="w-4 h-4 flex-shrink-0 text-amber-400 mt-0.5" />
+              <div className="p-3.5 rounded-xl bg-orange-100/70 border border-orange-300 flex items-start gap-2.5 text-xs text-orange-950 shadow-2xs">
+                <Sparkles className="w-4 h-4 flex-shrink-0 text-orange-600 mt-0.5" />
                 <p className="leading-relaxed">
                   <strong>Tips Videografer Properti Pro:</strong> Untuk video listing rumah mewah & villa, gunakan <em>Cinematic Light Leak</em> dengan durasi 0.75s untuk menonjolkan bias cahaya matahari alami di ruang tamu dan taman.
                 </p>
@@ -826,72 +1035,119 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
 
           {/* TAB 2: MUSIK & AUDIO MIXER */}
           {activeTab === 'audio' && (
-            <div className="space-y-5 p-5 rounded-2xl bg-slate-800/40 border border-slate-700/60 animate-in fade-in duration-150">
-              <div>
-                <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                  <Music className="w-4 h-4 text-amber-400" />
-                  Pilihan Backsound Musik Promosi Properti
-                </h3>
-                <p className="text-xs text-slate-400">
-                  Semua musik 100% bebas hak cipta, aman untuk iklan komersial di Instagram, TikTok & Facebook.
-                </p>
-              </div>
+            <div className="space-y-5 p-5 rounded-2xl bg-orange-50/50 border border-orange-200/90 animate-in fade-in duration-150 shadow-xs">
+              {/* Voice Narration Section */}
+              <div className="p-4 rounded-2xl bg-white border border-orange-200 shadow-2xs space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-orange-100">
+                  <div>
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-orange-100 text-orange-900 font-bold text-[11px] mb-1 border border-orange-200">
+                      <Volume2 className="w-3 h-3 text-orange-600" />
+                      Narasi Suara: Natural Room Tour
+                    </div>
+                    <h3 className="text-sm font-bold text-slate-900">
+                      Pengaturan Suara Host Room Tour
+                    </h3>
+                    <p className="text-xs text-slate-600">
+                      Suara mengalir alami dengan audio ducking otomatis (musik mengecil saat host berbicara).
+                    </p>
+                  </div>
 
-              {/* BGM Track Selector */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                {[
-                  { id: 'luxury_lofi', label: 'Luxury Lo-Fi', desc: 'Chill & Berkelas' },
-                  { id: 'chill_piano', label: 'Acoustic Piano', desc: 'Elegan & Hangat' },
-                  { id: 'modern_beats', label: 'Modern Upbeat', desc: 'Enerjik & Ceria' },
-                  { id: 'ambient_corporate', label: 'Ambient Soft', desc: 'Tenang & Bersih' },
-                ].map((track) => (
                   <button
-                    key={track.id}
                     type="button"
-                    onClick={() => {
-                      setSettings({ ...settings, bgmTrack: track.id as any });
-                      if (isPlaying) {
-                        soundEngine.startBgm(track.id);
-                      }
-                    }}
-                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
-                      settings.bgmTrack === track.id
-                        ? 'bg-amber-500/20 border-amber-500 text-white shadow-md'
-                        : 'bg-slate-900 border-slate-700 text-slate-300 hover:border-slate-600'
+                    onClick={handlePreviewVoice}
+                    disabled={isVoiceLoading}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs self-start sm:self-auto ${
+                      isVoicePlaying
+                        ? 'bg-rose-500 text-white'
+                        : 'bg-orange-500 hover:bg-orange-600 text-white'
                     }`}
                   >
-                    <span className="text-xs font-bold block">{track.label}</span>
-                    <span className="text-[10px] text-slate-400">{track.desc}</span>
+                    <Volume2 className="w-3.5 h-3.5" />
+                    <span>{isVoiceLoading ? 'Memuat Suara...' : isVoicePlaying ? 'Stop Suara' : 'Tes Suara Room Tour'}</span>
                   </button>
-                ))}
-              </div>
-
-              {/* Volume Sliders */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-700">
-                  <div className="flex items-center justify-between text-xs font-semibold mb-2">
-                    <span className="text-slate-300">Volume Musik Backsound:</span>
-                    <span className="text-amber-400">{Math.round(settings.bgmVolume * 100)}%</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.05"
-                    value={settings.bgmVolume}
-                    onChange={(e) => {
-                      const val = parseFloat(e.target.value);
-                      setSettings({ ...settings, bgmVolume: val });
-                      soundEngine.setVolumes(val, settings.voiceVolume);
-                    }}
-                    className="w-full accent-amber-500 cursor-pointer"
-                  />
                 </div>
 
-                <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-700">
-                  <div className="flex items-center justify-between text-xs font-semibold mb-2">
-                    <span className="text-slate-300">Volume Suara Narator:</span>
-                    <span className="text-emerald-400">{Math.round(settings.voiceVolume * 100)}%</span>
+                {/* Voice Character Selector with Test Sound Buttons beside each actor name */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold text-slate-800 block">
+                      Karakter Suara Host Room Tour:
+                    </span>
+                    <span className="text-[10px] text-slate-500">
+                      Klik <strong>Tes Suara</strong> di samping nama untuk audisi
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+                    {VOICE_PERSONAS.map((v) => {
+                      const isSelected = (propertyData.voiceName || 'Kore') === v.id;
+                      const isTesting = testingVoiceId === v.id;
+                      const isLoading = isLoadingVoiceId === v.id;
+
+                      return (
+                        <div
+                          key={v.id}
+                          onClick={() => {
+                            onUpdatePropertyData({ ...propertyData, voiceName: v.id });
+                            soundEngine.stopAllSpeech();
+                            setIsVoicePlaying(false);
+                          }}
+                          className={`p-2.5 rounded-xl border-2 transition-all cursor-pointer flex flex-col justify-between gap-2 ${
+                            isSelected
+                              ? 'bg-orange-50 border-orange-500 shadow-xs ring-2 ring-orange-400/20'
+                              : 'bg-orange-50/40 hover:bg-orange-50/80 border-orange-200 text-slate-800'
+                          }`}
+                        >
+                          {/* Name + Button Test Suara beside name */}
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="text-xs font-bold text-slate-900 truncate">
+                              {v.name}
+                            </span>
+
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleTestSpecificVoice(v.id);
+                              }}
+                              className={`px-2 py-0.5 rounded-lg text-[10px] font-bold flex items-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
+                                isTesting
+                                  ? 'bg-rose-500 text-white animate-pulse'
+                                  : isSelected
+                                  ? 'bg-orange-500 hover:bg-orange-600 text-white'
+                                  : 'bg-orange-100 hover:bg-orange-200 text-orange-950 border border-orange-300'
+                              }`}
+                              title={`Tes suara ${v.name}`}
+                            >
+                              {isLoading ? (
+                                <div className="w-2.5 h-2.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                              ) : isTesting ? (
+                                <Square className="w-2.5 h-2.5 fill-current" />
+                              ) : (
+                                <Volume2 className="w-2.5 h-2.5" />
+                              )}
+                              <span>{isLoading ? '...' : isTesting ? 'Stop' : 'Tes Suara'}</span>
+                            </button>
+                          </div>
+
+                          <div className="text-[10px] text-slate-500 leading-tight">
+                            {v.role}
+                          </div>
+
+                          <div className="text-[10px] font-bold text-orange-700 flex items-center gap-1 pt-1 border-t border-orange-200/60">
+                            {isSelected ? '✓ Terpilih' : 'Klik untuk Pilih'}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Voice volume slider */}
+                <div className="pt-2">
+                  <div className="flex items-center justify-between text-xs font-bold text-slate-800 mb-1.5">
+                    <span>Volume Suara Narator Host:</span>
+                    <span className="text-orange-600 font-mono">{Math.round(settings.voiceVolume * 100)}%</span>
                   </div>
                   <input
                     type="range"
@@ -904,7 +1160,74 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
                       setSettings({ ...settings, voiceVolume: val });
                       soundEngine.setVolumes(settings.bgmVolume, val);
                     }}
-                    className="w-full accent-emerald-500 cursor-pointer"
+                    className="w-full h-2 bg-orange-100 rounded-lg appearance-none cursor-pointer accent-orange-500"
+                  />
+                </div>
+              </div>
+
+              {/* BGM Track Section */}
+              <div className="p-4 rounded-2xl bg-white border border-orange-200 shadow-2xs space-y-3">
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                    <Music className="w-4 h-4 text-orange-600" />
+                    Pilihan Backsound Musik Promosi Properti
+                  </h3>
+                  <p className="text-xs text-slate-600">
+                    Semua musik 100% bebas hak cipta, aman untuk iklan komersial di Instagram, TikTok & Facebook.
+                  </p>
+                </div>
+
+                {/* BGM Track Selector */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                  {[
+                    { id: 'luxury_lofi', label: 'Luxury Lo-Fi', desc: 'Chill & Berkelas' },
+                    { id: 'chill_piano', label: 'Acoustic Piano', desc: 'Elegan & Hangat' },
+                    { id: 'modern_beats', label: 'Modern Upbeat', desc: 'Enerjik & Ceria' },
+                    { id: 'ambient_corporate', label: 'Ambient Soft', desc: 'Tenang & Bersih' },
+                  ].map((track) => (
+                    <button
+                      key={track.id}
+                      type="button"
+                      onClick={() => {
+                        setSettings({ ...settings, bgmTrack: track.id as any });
+                        if (isPlaying) {
+                          soundEngine.startBgm(track.id);
+                        }
+                      }}
+                      className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                        settings.bgmTrack === track.id
+                          ? 'bg-orange-500 text-white border-orange-500 shadow-xs'
+                          : 'bg-orange-50/60 hover:bg-orange-100/70 border-orange-200 text-slate-800'
+                      }`}
+                    >
+                      <span className={`text-xs font-bold block ${settings.bgmTrack === track.id ? 'text-white' : 'text-slate-900'}`}>
+                        {track.label}
+                      </span>
+                      <span className={`text-[10px] ${settings.bgmTrack === track.id ? 'text-orange-100' : 'text-slate-500'}`}>
+                        {track.desc}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+
+                {/* BGM Volume Slider */}
+                <div className="pt-2">
+                  <div className="flex items-center justify-between text-xs font-bold text-slate-800 mb-1.5">
+                    <span>Volume Musik Backsound:</span>
+                    <span className="text-orange-600 font-mono">{Math.round(settings.bgmVolume * 100)}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    value={settings.bgmVolume}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value);
+                      setSettings({ ...settings, bgmVolume: val });
+                      soundEngine.setVolumes(val, settings.voiceVolume);
+                    }}
+                    className="w-full h-2 bg-orange-100 rounded-lg appearance-none cursor-pointer accent-orange-500"
                   />
                 </div>
               </div>
@@ -913,29 +1236,29 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
 
           {/* TAB 3: LOGO & WATERMARK AGENCY */}
           {activeTab === 'branding' && (
-            <div className="space-y-5 p-5 rounded-2xl bg-slate-800/40 border border-slate-700/60 animate-in fade-in duration-150">
-              <div className="flex items-center justify-between">
+            <div className="space-y-5 p-5 rounded-2xl bg-orange-50/50 border border-orange-200/90 animate-in fade-in duration-150 shadow-xs">
+              <div className="flex items-center justify-between pb-3 border-b border-orange-200">
                 <div>
-                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                    <Shield className="w-4 h-4 text-amber-400" />
+                  <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                    <Shield className="w-4 h-4 text-orange-600" />
                     Pengaturan Logo Agency & Watermark
                   </h3>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-slate-600">
                     Atur posisi dan ukuran logo kantor agency Anda di sudut video.
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={onOpenProfile}
-                  className="text-xs text-amber-400 hover:underline font-semibold cursor-pointer"
+                  className="text-xs text-orange-600 hover:text-orange-700 hover:underline font-bold cursor-pointer"
                 >
                   Ganti File Logo →
                 </button>
               </div>
 
               {/* Watermark Toggle */}
-              <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-900 border border-slate-700">
-                <span className="text-xs font-semibold text-slate-200">
+              <div className="flex items-center justify-between p-3.5 rounded-xl bg-white border border-orange-200 shadow-2xs">
+                <span className="text-xs font-bold text-slate-800">
                   Tampilkan Branding Logo Agency di Video
                 </span>
                 <input
@@ -944,13 +1267,13 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
                   onChange={(e) =>
                     setSettings({ ...settings, watermarkEnabled: e.target.checked })
                   }
-                  className="w-4 h-4 accent-amber-500 cursor-pointer"
+                  className="w-4 h-4 accent-orange-500 cursor-pointer"
                 />
               </div>
 
               {/* Logo Position Selector */}
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-2">
+                <label className="block text-xs font-bold text-slate-800 mb-2">
                   Posisi Logo di Layar
                 </label>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -966,10 +1289,10 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
                       onClick={() =>
                         setSettings({ ...settings, logoPosition: pos.id as any })
                       }
-                      className={`p-2.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                      className={`p-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
                         settings.logoPosition === pos.id
-                          ? 'bg-amber-500/20 border-amber-500 text-amber-300'
-                          : 'bg-slate-900 border-slate-700 text-slate-300'
+                          ? 'bg-orange-500 border-orange-500 text-white shadow-xs'
+                          : 'bg-white border-orange-200 text-slate-700 hover:bg-orange-50'
                       }`}
                     >
                       {pos.label}
@@ -979,10 +1302,10 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
               </div>
 
               {/* Logo Scale Slider */}
-              <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-700">
-                <div className="flex items-center justify-between text-xs font-semibold mb-2">
-                  <span className="text-slate-300">Ukuran / Skala Logo Watermark:</span>
-                  <span className="text-amber-400">{settings.logoScale.toFixed(1)}x</span>
+              <div className="p-3.5 rounded-xl bg-white border border-orange-200 shadow-2xs">
+                <div className="flex items-center justify-between text-xs font-bold text-slate-800 mb-2">
+                  <span>Ukuran / Skala Logo Watermark:</span>
+                  <span className="text-orange-600 font-mono">{settings.logoScale.toFixed(1)}x</span>
                 </div>
                 <input
                   type="range"
@@ -993,7 +1316,7 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
                   onChange={(e) =>
                     setSettings({ ...settings, logoScale: parseFloat(e.target.value) })
                   }
-                  className="w-full accent-amber-500 cursor-pointer"
+                  className="w-full h-2 bg-orange-100 rounded-lg appearance-none cursor-pointer accent-orange-500"
                 />
               </div>
             </div>
@@ -1001,28 +1324,28 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
 
           {/* TAB 4: SUBTITLE & VISUAL FILTER */}
           {activeTab === 'captions' && (
-            <div className="space-y-5 p-5 rounded-2xl bg-slate-800/40 border border-slate-700/60 animate-in fade-in duration-150">
+            <div className="space-y-5 p-5 rounded-2xl bg-orange-50/50 border border-orange-200/90 animate-in fade-in duration-150 shadow-xs">
               <div>
-                <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                  <Palette className="w-4 h-4 text-amber-400" />
+                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                  <Palette className="w-4 h-4 text-orange-600" />
                   Gaya Subtitle Karaoke & Filter Visual Foto
                 </h3>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-slate-600">
                   Subtitle bergaya TikTok & Reels membantu video ditonton sampai selesai walau tanpa suara.
                 </p>
               </div>
 
               {/* Caption Theme */}
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-2">
+                <label className="block text-xs font-bold text-slate-800 mb-2">
                   Warna Highlight Subtitle (Karaoke Style)
                 </label>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {[
-                    { id: 'tiktok_yellow', label: 'Kuning Neon TikTok', color: '#facc15' },
-                    { id: 'luxury_gold', label: 'Emas Mewah Gold', color: '#fbbf24' },
-                    { id: 'cyan_modern', label: 'Cyan Biru Modern', color: '#38bdf8' },
-                    { id: 'minimal_white', label: 'Putih Minimalis', color: '#ffffff' },
+                    { id: 'tiktok_yellow', label: 'Kuning TikTok', color: '#facc15' },
+                    { id: 'luxury_gold', label: 'Emas Gold', color: '#fbbf24' },
+                    { id: 'cyan_modern', label: 'Cyan Biru', color: '#38bdf8' },
+                    { id: 'minimal_white', label: 'Putih Bersih', color: '#ffffff' },
                   ].map((theme) => (
                     <button
                       key={theme.id}
@@ -1030,14 +1353,14 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
                       onClick={() =>
                         setSettings({ ...settings, captionTheme: theme.id as any })
                       }
-                      className={`p-2.5 rounded-xl border text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer ${
+                      className={`p-2.5 rounded-xl border text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
                         settings.captionTheme === theme.id
-                          ? 'bg-slate-800 border-amber-400 text-white'
-                          : 'bg-slate-900 border-slate-700 text-slate-300'
+                          ? 'bg-orange-500 border-orange-500 text-white shadow-xs'
+                          : 'bg-white border-orange-200 text-slate-700 hover:bg-orange-50'
                       }`}
                     >
                       <div
-                        className="w-3.5 h-3.5 rounded-full flex-shrink-0"
+                        className="w-3.5 h-3.5 rounded-full flex-shrink-0 border border-slate-300"
                         style={{ backgroundColor: theme.color }}
                       />
                       <span>{theme.label}</span>
@@ -1048,7 +1371,7 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
 
               {/* Visual Filter */}
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-2">
+                <label className="block text-xs font-bold text-slate-800 mb-2">
                   Tone Warna Filter Foto Visual
                 </label>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -1064,10 +1387,10 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
                       onClick={() =>
                         setSettings({ ...settings, visualFilter: filter.id as any })
                       }
-                      className={`p-2.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                      className={`p-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
                         settings.visualFilter === filter.id
-                          ? 'bg-amber-500/20 border-amber-500 text-amber-300'
-                          : 'bg-slate-900 border-slate-700 text-slate-300'
+                          ? 'bg-orange-500 border-orange-500 text-white shadow-xs'
+                          : 'bg-white border-orange-200 text-slate-700 hover:bg-orange-50'
                       }`}
                     >
                       {filter.label}
@@ -1077,8 +1400,8 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
               </div>
 
               {/* Badges Toggle */}
-              <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-900 border border-slate-700">
-                <span className="text-xs font-semibold text-slate-200">
+              <div className="flex items-center justify-between p-3.5 rounded-xl bg-white border border-orange-200 shadow-2xs">
+                <span className="text-xs font-bold text-slate-800">
                   Tampilkan Badge Spesifikasi (LT, LB, KT, KM, SHM)
                 </span>
                 <input
@@ -1087,19 +1410,19 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
                   onChange={(e) =>
                     setSettings({ ...settings, showBadges: e.target.checked })
                   }
-                  className="w-4 h-4 accent-amber-500 cursor-pointer"
+                  className="w-4 h-4 accent-orange-500 cursor-pointer"
                 />
               </div>
             </div>
           )}
 
           {/* Final Action Bar with Download Button & WhatsApp Share */}
-          <div className="p-5 rounded-2xl bg-gradient-to-r from-slate-900 to-slate-950 border border-emerald-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="p-5 rounded-2xl bg-orange-50 border-2 border-orange-300 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
             <div>
-              <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider block">
+              <span className="text-xs font-extrabold text-orange-900 uppercase tracking-wider block">
                 Video Sudah Siap Diunduh!
               </span>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs text-slate-600 mt-0.5">
                 Format siap posting di WhatsApp Status, Reels, TikTok, dan Facebook.
               </p>
             </div>
@@ -1121,24 +1444,24 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
 
       {/* EXPORTING PROGRESS MODAL */}
       {isExporting && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md">
-          <div className="w-full max-w-md p-6 rounded-3xl bg-slate-900 border border-slate-700 text-center shadow-2xl space-y-4">
-            <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-amber-500 to-emerald-500 flex items-center justify-center shadow-xl shadow-amber-500/20 animate-pulse">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="w-full max-w-md p-6 rounded-3xl bg-white border-2 border-orange-200 text-center shadow-2xl space-y-4">
+            <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center shadow-xl shadow-orange-500/20 animate-pulse">
               <Download className="w-8 h-8 text-white" />
             </div>
-            <h3 className="text-lg font-bold text-white font-['Outfit']">
+            <h3 className="text-lg font-bold text-slate-900 font-['Outfit']">
               Sedang Meng-encode Video Promosi...
             </h3>
-            <p className="text-xs text-slate-400">{exportStatusText}</p>
+            <p className="text-xs text-slate-600">{exportStatusText}</p>
 
             {/* Progress bar */}
-            <div className="w-full bg-slate-800 h-3 rounded-full overflow-hidden border border-slate-700">
+            <div className="w-full bg-orange-100 h-3 rounded-full overflow-hidden border border-orange-200">
               <div
-                className="bg-gradient-to-r from-amber-500 via-orange-500 to-emerald-500 h-full transition-all duration-300"
+                className="bg-gradient-to-r from-orange-500 via-amber-500 to-emerald-500 h-full transition-all duration-300"
                 style={{ width: `${exportProgress}%` }}
               />
             </div>
-            <span className="text-xs font-mono font-bold text-amber-400 block">
+            <span className="text-xs font-mono font-bold text-orange-600 block">
               {exportProgress}%
             </span>
           </div>
@@ -1147,27 +1470,27 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
 
       {/* DOWNLOAD SUCCESS MODAL WITH WA CTA */}
       {downloadSuccessModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-in fade-in">
-          <div className="relative w-full max-w-lg p-6 sm:p-8 rounded-3xl bg-slate-900 border border-emerald-500/40 text-center shadow-2xl space-y-5">
-            <div className="w-16 h-16 mx-auto rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/40 shadow-xl shadow-emerald-500/20">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
+          <div className="relative w-full max-w-lg p-6 sm:p-8 rounded-3xl bg-white border-2 border-emerald-300 text-center shadow-2xl space-y-5">
+            <div className="w-16 h-16 mx-auto rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center border border-emerald-300 shadow-md">
               <Check className="w-8 h-8" />
             </div>
             <div>
-              <h3 className="text-2xl font-bold font-['Outfit'] text-white">
+              <h3 className="text-2xl font-bold font-['Outfit'] text-slate-900">
                 Video Berhasil Diunduh! 🎉
               </h3>
-              <p className="text-xs sm:text-sm text-slate-400 mt-2">
+              <p className="text-xs sm:text-sm text-slate-600 mt-2">
                 File video tersimpan di perangkat Anda. Siap diposting ke Status WhatsApp, TikTok, Instagram Reels, dan Facebook!
               </p>
             </div>
 
             {/* Next Step Advice */}
-            <div className="p-4 rounded-2xl bg-slate-800/80 border border-slate-700 text-left text-xs space-y-2">
-              <span className="font-bold text-amber-400 block">💡 Tips Closing Cepat Agen Properti:</span>
-              <p className="text-slate-300">
+            <div className="p-4 rounded-2xl bg-orange-50/80 border border-orange-200 text-left text-xs space-y-2">
+              <span className="font-bold text-orange-950 block">💡 Tips Closing Cepat Agen Properti:</span>
+              <p className="text-slate-700">
                 1. Pasang di Status WhatsApp dengan caption harga dan tautan chat Anda.
               </p>
-              <p className="text-slate-300">
+              <p className="text-slate-700">
                 2. Posting di Reels & TikTok menggunakan hashtag lokasi (misal: #RumahBintaro #PropertiJaksel).
               </p>
             </div>
@@ -1178,7 +1501,7 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
                 href={waShareUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-bold text-xs shadow-lg shadow-emerald-950/40 flex items-center justify-center gap-2 transition-all hover:scale-[1.01]"
+                className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-bold text-xs shadow-md flex items-center justify-center gap-2 transition-all hover:scale-[1.01]"
               >
                 <MessageCircle className="w-4 h-4" />
                 <span>Konsultasi / Hubungi WhatsApp: 0896-7368-6625</span>
@@ -1187,7 +1510,7 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
               <button
                 type="button"
                 onClick={() => setDownloadSuccessModal(false)}
-                className="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-colors cursor-pointer"
+                className="w-full py-2.5 px-4 rounded-xl bg-orange-100 hover:bg-orange-200 text-orange-950 text-xs font-bold transition-colors cursor-pointer"
               >
                 Tutup & Lanjutkan Edit
               </button>

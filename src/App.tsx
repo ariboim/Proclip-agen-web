@@ -49,7 +49,7 @@ function playNotificationChime() {
   }
 }
 
-// Intelligent Fallback Script Generator tailored to property data
+// Intelligent Fallback Script Generator tailored to property data with Natural Room Tour Walkthrough style
 function generateIntelligentScript(data: PropertyFormData, agent: AgentProfile): GeneratedVideoScript {
   const dur = data.duration || 30;
   const priceDisplay = data.price || 'Harga Spesial Nego';
@@ -59,17 +59,17 @@ function generateIntelligentScript(data: PropertyFormData, agent: AgentProfile):
 
   if (dur === 15) {
     return {
-      catchyHeadline: `Hunian Idaman di ${locDisplay.slice(0, 20)}!`,
-      fullScript: `Cari rumah siap huni di ${locDisplay}? Ini dia unit spesial dengan luas tanah ${data.landArea || '120'} meter persegi, ${data.bedrooms || '3'} kamar tidur, dan legalitas SHM aman. Harga hanya ${priceDisplay}! Info survey hubungi ${agent.name} sekarang.`,
+      catchyHeadline: `Room Tour Singkat: ${locDisplay.slice(0, 22)}!`,
+      fullScript: `Halo semuanya! Yuk ikut saya intip rumah siap huni di ${locDisplay}. Ruangannya plong, adem banget, ada ${data.bedrooms || '3'} kamar tidur, dan legalitasnya udah SHM aman. Harganya cuma ${priceDisplay}! Yuk langsung hubungi saya, ${agent.name}, buat survey hari ini!`,
       closingCtaText: `Hubungi WhatsApp ${agent.name}: ${agentWa}`,
-      highlightBadges: [`Harga ${priceDisplay}`, `LT ${data.landArea || '120'}m²`, `SHM Ready`, `Lokasi Prima`],
+      highlightBadges: [`Harga ${priceDisplay}`, `LT ${data.landArea || '120'}m²`, `SHM Ready`, `Siap Huni`],
       scenes: [
         {
           sceneIndex: 0,
           photoTarget: 'exterior',
           startSec: 0,
           endSec: 5,
-          spokenText: `Cari rumah siap huni di ${locDisplay}?`,
+          spokenText: `Halo semuanya! Yuk ikut saya intip rumah siap huni di ${locDisplay}.`,
           screenTitle: titleDisplay,
           screenBadge: `Harga ${priceDisplay}`,
           motionStyle: 'zoom-in',
@@ -79,7 +79,7 @@ function generateIntelligentScript(data: PropertyFormData, agent: AgentProfile):
           photoTarget: 'interior',
           startSec: 5,
           endSec: 10,
-          spokenText: `Luas tanah ${data.landArea || '120'} meter persegi dengan desain modern dan legalitas SHM aman.`,
+          spokenText: `Ruangannya plong dan adem banget, ada ${data.bedrooms || '3'} kamar tidur dan legalitas SHM aman.`,
           screenTitle: 'Ruangan Lapang & Terang',
           screenBadge: `${data.bedrooms || '3'} KT • ${data.bathrooms || '2'} KM`,
           motionStyle: 'pan-right',
@@ -89,7 +89,7 @@ function generateIntelligentScript(data: PropertyFormData, agent: AgentProfile):
           photoTarget: 'cta',
           startSec: 10,
           endSec: 15,
-          spokenText: `Harga ${priceDisplay}! Segera hubungi ${agent.name} untuk jadwal survey lokasi.`,
+          spokenText: `Harganya cuma ${priceDisplay}! Yuk langsung kontak ${agent.name} buat jadwal survey sekarang juga.`,
           screenTitle: `Hubungi ${agent.name}`,
           screenBadge: `WA: ${agentWa}`,
           motionStyle: 'dramatic-zoom',
@@ -98,8 +98,8 @@ function generateIntelligentScript(data: PropertyFormData, agent: AgentProfile):
     };
   } else if (dur === 60) {
     return {
-      catchyHeadline: `Eksklusif! Tur Lengkap ${titleDisplay}`,
-      fullScript: `Halo calon pembeli rumah impian. Kembali lagi bersama ${agent.name} dari ${agent.agencyName}. Hari ini saya perkenalkan sebuah mahakarya hunian di ${locDisplay}. Memiliki luas tanah ${data.landArea || '120'} meter persegi dan luas bangunan ${data.buildingArea || '145'} meter persegi. Tata ruangnya sangat leluasa dengan konsep open space dan sirkulasi udara optimal. Terdapat ${data.bedrooms || '4'} kamar tidur nyaman dan ${data.bathrooms || '3'} kamar mandi mewah. Carport muat ${data.carports || '2'} mobil dengan keamanan One Gate System 24 jam. Menariknya lagi, Anda mendapatkan promo spesial ${data.specialPromo || 'Free BPHTB'}. Jangan tunda lagi sebelum unit dipesan orang lain. Hubungi ${agent.name} di WhatsApp ${agentWa} untuk survey lokasi sekarang juga!`,
+      catchyHeadline: `Full Room Tour Eksklusif: ${titleDisplay}`,
+      fullScript: `Halo sahabat properti! Welcome to room tour bersama saya, ${agent.name} dari ${agent.agencyName}. Hari ini saya ajak kalian keliling hunian idaman di ${locDisplay}. Dari fasad arsitekturnya yang elegan, kita langsung melangkah ke area ruang keluarga dengan konsep open space plafon tinggi—suasananya adem dan homey banget. Nah, sekarang kita naik ke lantai atas, ada ${data.bedrooms || '4'} kamar tidur yang luas, master bedroom-nya punya pencahayaan alami maksimal dan balkon asri. Dapurnya juga sudah tertata rapi, siap pakai tanpa repot renovasi. Menariknya lagi, legalitas sudah SHM aman dan ada promo spesial ${data.specialPromo || 'Free BPHTB'}. Harganya ${priceDisplay}. Jangan tunggu keduluan, yuk jadwalkan survey sekarang juga lewat WhatsApp saya di ${agentWa}!`,
       closingCtaText: `Survey & Booking Hubungi WhatsApp ${agent.name}: ${agentWa}`,
       highlightBadges: [
         `Harga ${priceDisplay}`,
@@ -114,7 +114,7 @@ function generateIntelligentScript(data: PropertyFormData, agent: AgentProfile):
           photoTarget: 'exterior',
           startSec: 0,
           endSec: 12,
-          spokenText: `Halo calon pembeli rumah impian! Kembali lagi bersama ${agent.name} dari ${agent.agencyName}.`,
+          spokenText: `Halo sahabat properti! Welcome to room tour bersama saya, ${agent.name} dari ${agent.agencyName}. Hari ini kita keliling hunian impian di ${locDisplay}.`,
           screenTitle: titleDisplay,
           screenBadge: `Lokasi: ${locDisplay}`,
           motionStyle: 'zoom-in',
@@ -124,8 +124,8 @@ function generateIntelligentScript(data: PropertyFormData, agent: AgentProfile):
           photoTarget: 'living',
           startSec: 12,
           endSec: 25,
-          spokenText: `Memiliki luas tanah ${data.landArea || '120'} meter persegi dengan tata ruang open space yang sangat leluasa.`,
-          screenTitle: 'Ruang Tamu & Keluarga Luas',
+          spokenText: `Begitu masuk, kita langsung disambut ruang keluarga open space plafon tinggi. Sirkulasinya segar dan terang alami banget.`,
+          screenTitle: 'Ruang Tamu & Keluarga Plafon Tinggi',
           screenBadge: `LT ${data.landArea || '120'}m² • LB ${data.buildingArea || '145'}m²`,
           motionStyle: 'pan-right',
         },
@@ -134,8 +134,8 @@ function generateIntelligentScript(data: PropertyFormData, agent: AgentProfile):
           photoTarget: 'bedroom',
           startSec: 25,
           endSec: 38,
-          spokenText: `Dilengkapi ${data.bedrooms || '4'} kamar tidur berkelas dan ${data.bathrooms || '3'} kamar mandi bernuansa resort.`,
-          screenTitle: 'Kamar Tidur Utama Mewah',
+          spokenText: `Di lantai atas ada ${data.bedrooms || '4'} kamar tidur luas. Master bedroom-nya super nyaman bernuansa villa resort.`,
+          screenTitle: 'Kamar Tidur Utama Mewah & Asri',
           screenBadge: `${data.bedrooms || '4'} Kamar Tidur Nyaman`,
           motionStyle: 'zoom-out',
         },
@@ -144,8 +144,8 @@ function generateIntelligentScript(data: PropertyFormData, agent: AgentProfile):
           photoTarget: 'kitchen',
           startSec: 38,
           endSec: 48,
-          spokenText: `Dapur modern dan promo istimewa: ${data.specialPromo || 'Free BPHTB & Biaya KPR'}.`,
-          screenTitle: 'Fasilitas & Promo Spesial',
+          spokenText: `Dapurnya modern siap pakai, ditambah promo istimewa ${data.specialPromo || 'Free BPHTB & Biaya KPR'}.`,
+          screenTitle: 'Dapur Modern & Promo Spesial',
           screenBadge: 'Promo Khusus Bulan Ini',
           motionStyle: 'pan-right',
         },
@@ -154,7 +154,7 @@ function generateIntelligentScript(data: PropertyFormData, agent: AgentProfile):
           photoTarget: 'cta',
           startSec: 48,
           endSec: 60,
-          spokenText: `Harga penawaran terbaik ${priceDisplay}. Hubungi WhatsApp ${agent.name} di ${agentWa} sekarang juga!`,
+          spokenText: `Penawaran terbaik ${priceDisplay}. Jangan tunggu keduluan, yuk langsung hubungi WhatsApp ${agent.name} di ${agentWa} buat survey!`,
           screenTitle: `Hubungi ${agent.name}`,
           screenBadge: `WA: ${agentWa}`,
           motionStyle: 'dramatic-zoom',
@@ -165,8 +165,8 @@ function generateIntelligentScript(data: PropertyFormData, agent: AgentProfile):
 
   // Default 30s
   return {
-    catchyHeadline: `Hunian Idaman 2 Lantai di ${locDisplay.slice(0, 24)}!`,
-    fullScript: `Lagi cari rumah impian yang siap huni dan lokasinya super strategis di ${locDisplay}? Nih kenalin, hunian modern 2 lantai dengan luas tanah ${data.landArea || '120'} meter persegi dan luas bangunan ${data.buildingArea || '145'} meter persegi. Ruang tamunya lega, ada ${data.bedrooms || '4'} kamar tidur, dan carport untuk ${data.carports || '2'} mobil. Legalitasnya sudah SHM aman, plus ada promo ${data.specialPromo || 'Free BPHTB'}. Harganya sangat kompetitif, ${priceDisplay}. Jangan tunggu keduluan orang lain, segera hubungi saya, ${agent.name} di nomor WhatsApp ${agentWa} untuk jadwal survey hari ini!`,
+    catchyHeadline: `Yuk Room Tour Rumah Idaman di ${locDisplay.slice(0, 24)}!`,
+    fullScript: `Halo semuanya! Yuk ikut saya room tour ke rumah modern 2 lantai impian di ${locDisplay}. Begitu masuk dari area carport, kita disambut ruang keluarga berkonsep open space yang adem dan terang berkat pencahayaan alami. Sirkulasinya segar banget, ada ${data.bedrooms || '4'} kamar tidur yang super nyaman, plus dapur modern siap pakai. Legalitasnya udah aman banget, SHM ready, dan ada promo ${data.specialPromo || 'Free BPHTB'}. Harganya sangat bersahabat, ${priceDisplay}. Penasaran mau lihat langsung? Yuk langsung kontak WhatsApp saya, ${agent.name}, di ${agentWa} sekarang juga!`,
     closingCtaText: `Hubungi WhatsApp ${agent.name}: ${agentWa}`,
     highlightBadges: [
       `Harga ${priceDisplay}`,
@@ -181,7 +181,7 @@ function generateIntelligentScript(data: PropertyFormData, agent: AgentProfile):
         photoTarget: 'exterior',
         startSec: 0,
         endSec: 8,
-        spokenText: `Lagi cari rumah impian yang siap huni dan lokasinya super strategis di ${locDisplay}?`,
+        spokenText: `Halo semuanya! Yuk ikut saya room tour ke rumah modern impian di ${locDisplay}.`,
         screenTitle: titleDisplay,
         screenBadge: `Harga ${priceDisplay}`,
         motionStyle: 'zoom-in',
@@ -191,7 +191,7 @@ function generateIntelligentScript(data: PropertyFormData, agent: AgentProfile):
         photoTarget: 'living',
         startSec: 8,
         endSec: 16,
-        spokenText: `Nih kenalin, hunian modern dengan luas tanah ${data.landArea || '120'} meter persegi dan ruangan lega.`,
+        spokenText: `Begitu masuk, kita langsung disambut ruang keluarga open space yang adem dan terang alami.`,
         screenTitle: 'Ruangan Open Space Plafon Tinggi',
         screenBadge: `LT ${data.landArea || '120'}m² • LB ${data.buildingArea || '145'}m²`,
         motionStyle: 'pan-right',
@@ -201,7 +201,7 @@ function generateIntelligentScript(data: PropertyFormData, agent: AgentProfile):
         photoTarget: 'bedroom',
         startSec: 16,
         endSec: 23,
-        spokenText: `Ada ${data.bedrooms || '4'} kamar tidur nyaman, legalitas SHM, dan promo ${data.specialPromo || 'Free BPHTB'}.`,
+        spokenText: `Ada ${data.bedrooms || '4'} kamar tidur nyaman, legalitas SHM aman, plus promo ${data.specialPromo || 'Free BPHTB'}.`,
         screenTitle: 'Kenyamanan Hunian Keluarga',
         screenBadge: `${data.bedrooms || '4'} KT • ${data.bathrooms || '3'} KM`,
         motionStyle: 'zoom-out',
@@ -211,7 +211,7 @@ function generateIntelligentScript(data: PropertyFormData, agent: AgentProfile):
         photoTarget: 'cta',
         startSec: 23,
         endSec: 30,
-        spokenText: `Harga ${priceDisplay}. Segera hubungi saya, ${agent.name} di WhatsApp ${agentWa} untuk survey!`,
+        spokenText: `Harganya bersahabat ${priceDisplay}. Yuk langsung kontak saya, ${agent.name} di ${agentWa} buat survey!`,
         screenTitle: `Hubungi ${agent.name}`,
         screenBadge: `WA: ${agentWa}`,
         motionStyle: 'dramatic-zoom',
@@ -450,11 +450,16 @@ export default function App() {
         const json = await response.json();
         if (json.success && json.data) {
           setGeneratedScript(json.data);
+          soundEngine.fetchNaturalVoice(json.data.fullScript, formData.voiceName || 'Kore').catch(() => {});
         } else {
-          setGeneratedScript(generateIntelligentScript(formData, agent));
+          const fallback = generateIntelligentScript(formData, agent);
+          setGeneratedScript(fallback);
+          soundEngine.fetchNaturalVoice(fallback.fullScript, formData.voiceName || 'Kore').catch(() => {});
         }
       } else {
-        setGeneratedScript(generateIntelligentScript(formData, agent));
+        const fallback = generateIntelligentScript(formData, agent);
+        setGeneratedScript(fallback);
+        soundEngine.fetchNaturalVoice(fallback.fullScript, formData.voiceName || 'Kore').catch(() => {});
       }
 
       setLiveProgressPercent(58);
@@ -514,6 +519,7 @@ export default function App() {
 
       // Switch to studio view: video automatically appears in preview before download or share
       setActiveView('studio');
+      setCurrentPage('studio');
 
       window.scrollTo({ top: 320, behavior: 'smooth' });
 
@@ -528,10 +534,13 @@ export default function App() {
       }
     } catch (err) {
       console.warn('Script generation network error, using intelligent fallback', err);
-      setGeneratedScript(generateIntelligentScript(formData, agent));
+      const fallback = generateIntelligentScript(formData, agent);
+      setGeneratedScript(fallback);
+      soundEngine.fetchNaturalVoice(fallback.fullScript, formData.voiceName || 'Kore').catch(() => {});
       setIsLiveProgressOpen(false);
       setIsLoading(false);
       setActiveView('studio');
+      setCurrentPage('studio');
       window.scrollTo({ top: 320, behavior: 'smooth' });
     }
   };
@@ -571,6 +580,7 @@ export default function App() {
         const json = await response.json();
         if (json.success && json.data) {
           setGeneratedScript(json.data);
+          soundEngine.fetchNaturalVoice(json.data.fullScript, formData.voiceName || 'Kore').catch(() => {});
         }
       }
     } catch (err) {

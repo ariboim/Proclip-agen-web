@@ -6,6 +6,55 @@
  * - Web Speech API fallback for Indonesian Realistic Voiceover
  */
 
+export interface VoicePersona {
+  id: string; // 'Kore', 'Fenrir', 'Puck', 'Zephyr'
+  name: string; // 'Citra', 'Dimas', 'Rani', 'Bayu'
+  label: string; // 'Citra (Host Ramah)'
+  gender: 'female' | 'male';
+  role: string; // 'Wanita Hangat & Ramah'
+  badge: string; // 'Host Ramah', 'Host Elegan', 'Host Ceria', 'Host Santai'
+  sampleText: string;
+}
+
+export const VOICE_PERSONAS: VoicePersona[] = [
+  {
+    id: 'Kore',
+    name: 'Citra',
+    label: 'Citra (Host Ramah)',
+    gender: 'female',
+    role: 'Wanita Hangat & Ramah',
+    badge: 'Host Ramah',
+    sampleText: 'Halo semuanya, selamat datang! Yuk temani saya room tour keliling hunian cantik berlimpah cahaya alami ini.',
+  },
+  {
+    id: 'Fenrir',
+    name: 'Dimas',
+    label: 'Dimas (Host Elegan)',
+    gender: 'male',
+    role: 'Pria Berwibawa & Elegan',
+    badge: 'Host Elegan',
+    sampleText: 'Halo rekan buyer dan investor properti, selamat datang di hunian mewah bernilai investasi tinggi dan berlokasi sangat strategis.',
+  },
+  {
+    id: 'Puck',
+    name: 'Rani',
+    label: 'Rani (Host Ceria)',
+    gender: 'female',
+    role: 'Ceria, Energik & Viral',
+    badge: 'Host Ceria',
+    sampleText: 'Hai semuanya! Wah rumah satu ini aesthetic banget, yuk langsung kita explore interiornya!',
+  },
+  {
+    id: 'Zephyr',
+    name: 'Bayu',
+    label: 'Bayu (Host Santai)',
+    gender: 'male',
+    role: 'Santai, Cozy & Natural',
+    badge: 'Host Santai',
+    sampleText: 'Halo sobat properti, hari ini kita santai keliling rumah idaman dengan tata ruang lega dan lingkungan yang asri.',
+  },
+];
+
 class SoundEngine {
   private ctx: AudioContext | null = null;
   private isBgmPlaying = false;
@@ -235,10 +284,17 @@ class SoundEngine {
     }
   }
 
+  private ttsAudioCache = new Map<string, string>();
+  private isVoiceActive = false;
+
+  public isVoicePlaying(): boolean {
+    return this.isVoiceActive;
+  }
+
   /**
    * Play base64 WAV audio from Gemini TTS with automatic audio ducking
    */
-  public async playWavAudio(base64Wav: string): Promise<void> {
+  public async playWavAudio(base64Wav: string, onEnd?: () => void): Promise<void> {
     this.init();
     if (!this.ctx || !this.voiceGainNode) return;
 
@@ -261,6 +317,7 @@ class SoundEngine {
 
       // Auto-duck BGM while voice is playing!
       this.duckBgm();
+      this.isVoiceActive = true;
 
       const source = this.ctx.createBufferSource();
       source.buffer = audioBuffer;
@@ -268,42 +325,131 @@ class SoundEngine {
       this.currentVoiceSource = source;
 
       source.onended = () => {
+        this.isVoiceActive = false;
         this.unduckBgm();
+        if (onEnd) onEnd();
       };
 
       source.start();
     } catch (err) {
       console.warn('WAV decode failed, falling back to Web Speech API', err);
+      this.isVoiceActive = false;
+      this.unduckBgm();
     }
   }
 
   /**
-   * Speak narration using Web Speech API with automatic audio ducking
+   * Fetch natural Gemini HD voice for room tour narration from server
    */
-  public speakIndonesian(text: string, onEnd?: () => void) {
+  public async fetchNaturalVoice(text: string, voiceName: string = 'Kore'): Promise<string | null> {
+    const cleanText = text.trim();
+    if (!cleanText) return null;
+
+    const cacheKey = `${voiceName}:${cleanText}`;
+    if (this.ttsAudioCache.has(cacheKey)) {
+      return this.ttsAudioCache.get(cacheKey)!;
+    }
+
+    try {
+      const response = await fetch('/api/generate-tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: cleanText,
+          voiceName,
+          stylePrompt: 'Natural, warm Indonesian room tour host, lively, conversational property advisor walking through a house, realistic human breathing and warm cadence, friendly and engaging',
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`TTS server responded with ${response.status}`);
+      }
+
+      const data = await response.json();
+      if (data.success && data.audioBase64) {
+        this.ttsAudioCache.set(cacheKey, data.audioBase64);
+        return data.audioBase64;
+      }
+      return null;
+    } catch (err) {
+      console.warn('Natural voice generation fetch failed, will use natural speech synthesis fallback', err);
+      return null;
+    }
+  }
+
+  /**
+   * Speak using Natural Room Tour Voice (Gemini HD TTS first, smooth Web Speech API fallback)
+   */
+  public async speakNaturalRoomTour(text: string, voiceName: string = 'Kore', onEnd?: () => void): Promise<boolean> {
+    this.init();
+    this.stopAllSpeech();
+
+    const naturalAudio = await this.fetchNaturalVoice(text, voiceName);
+    if (naturalAudio) {
+      await this.playWavAudio(naturalAudio, onEnd);
+      return true;
+    }
+
+    // High quality natural room tour fallback with tuned cadence
+    const persona = VOICE_PERSONAS.find((p) => p.id === voiceName);
+    const isMale = persona?.gender === 'male';
+    this.speakIndonesian(text, onEnd, isMale ? 0.88 : 1.1);
+    return false;
+  }
+
+  /**
+   * Preview a voice persona sample greeting
+   */
+  public async previewVoicePersona(
+    voiceId: string,
+    onEnd?: () => void
+  ): Promise<boolean> {
+    const persona = VOICE_PERSONAS.find((p) => p.id === voiceId) || VOICE_PERSONAS[0];
+    return this.speakNaturalRoomTour(persona.sampleText, persona.id, onEnd);
+  }
+
+  /**
+   * Speak narration using Web Speech API with automatic audio ducking and tuned human-like cadence
+   */
+  public speakIndonesian(text: string, onEnd?: () => void, customPitch: number = 1.05) {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
     window.speechSynthesis.cancel();
 
     // Auto-duck BGM when speaking!
     this.duckBgm();
+    this.isVoiceActive = true;
 
-    const utterance = new SpeechSynthesisUtterance(text);
+    // Insert natural breathing micro-pauses for punctuation so it sounds like a real person
+    const naturalPacedText = text
+      .replace(/(\. )/g, '... ')
+      .replace(/(, )/g, ', ')
+      .replace(/(! )/g, '! ');
+
+    const utterance = new SpeechSynthesisUtterance(naturalPacedText);
     utterance.lang = 'id-ID';
-    utterance.rate = 1.05; // Energetic property agent tempo
-    utterance.pitch = 1.02;
+    utterance.rate = 1.0; // Relaxed natural room tour tempo (not rushed or robotic)
+    utterance.pitch = 1.05; // Friendly, warm welcoming tone
 
     const voices = window.speechSynthesis.getVoices();
-    const idVoice = voices.find((v) => v.lang.startsWith('id') || v.lang.includes('ID') || v.name.includes('Indonesian'));
+    // Prefer natural Google Indonesian or Indonesian female/male voices
+    const idVoice = voices.find(
+      (v) =>
+        (v.lang.startsWith('id') || v.lang.includes('ID') || v.name.includes('Indonesian')) &&
+        (v.name.includes('Google') || v.name.includes('Natural') || v.name.includes('Premium') || v.name.includes('Online'))
+    ) || voices.find((v) => v.lang.startsWith('id') || v.lang.includes('ID') || v.name.includes('Indonesian'));
+
     if (idVoice) {
       utterance.voice = idVoice;
     }
 
     utterance.onend = () => {
+      this.isVoiceActive = false;
       this.unduckBgm();
       if (onEnd) onEnd();
     };
 
     utterance.onerror = () => {
+      this.isVoiceActive = false;
       this.unduckBgm();
     };
 
@@ -311,6 +457,7 @@ class SoundEngine {
   }
 
   public stopAllSpeech() {
+    this.isVoiceActive = false;
     this.unduckBgm();
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.cancel();

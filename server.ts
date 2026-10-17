@@ -55,16 +55,22 @@ app.post('/api/generate-script', async (req, res) => {
 
     const wordTarget = duration === 15 ? '35-45 kata' : duration === 30 ? '70-90 kata' : '140-180 kata';
 
-    const systemPrompt = `Anda adalah copywriter dan scriptwriter video promosi properti terbaik di Indonesia, berpengalaman memproduksi video viral bernilai miliaran rupiah untuk agen properti profesional (ERA, Brighton, Ray White, Century 21, dll).
+    const systemPrompt = `Anda adalah host room tour properti profesional dan copywriter video real estate terbaik di Indonesia (seperti YouTuber/TikToker tur rumah mewah ternama).
 TUGAS UTAMA:
-Buatkan naskah voiceover video promosi properti yang SANGAT REALISTIS, luwes, mengalir alami, tidak kaku, menggunakan intonasi bahasa Indonesia yang menjual (hypnotic property copywriting), memikat calon pembeli rumah/investor, dan langsung menyentuh emosi pembeli.
+Buatkan naskah voiceover video "NATURAL ROOM TOUR" yang SANGAT ALAMI, luwes, santai, hangat, dan mengalir seperti manusia sungguhan yang sedang berjalan mengajak calon pembeli berkeliling ruangan (bukan suara AI robot atau pembacaan brosur kaku).
 
-PENTING:
-- JANGAN KAKU seperti membaca brosur teknis! Ubah spesifikasi teknis menjadi benefit hidup nyata (misal: "Carport 2 mobil, ga pusing parkir", "Legalitas SHM aman tenang tanpa was-was").
-- Target durasi video: ${duration} detik (sekitar ${wordTarget} untuk pembacaan tempo ramah dan energik).
-- Format platform: ${platform} (${platform === 'wa_status' ? 'Status WhatsApp - singkat, to the point, visual' : platform === 'reels_tiktok' ? 'Instagram Reels & TikTok - hook 3 detik pertama sangat menghentak' : 'Facebook & Feed - berbobot, meyakinkan, prospektif'}).
-- Tone gaya: ${tone === 'luxurious' ? 'Mewah, elegan, prestisius, kebanggaan keluarga' : tone === 'urgency_promo' ? 'Promo terbatas, diskon besar, jangan sampai keduluan orang lain' : tone === 'warm_family' ? 'Hangat, nyaman, lingkungan ramah anak, hunian impian masa depan' : 'Cuan investasi, lokasi prima bernilai tinggi, capital gain mantap'}.
-- CTA di akhir harus menyuruh penonton segera kontak WhatsApp ${agentName} (${agencyName}) di nomor ${agentWa || '089673686625'}.`;
+PANDUAN GAYA BICARA NATURAL ROOM TOUR:
+1. Gaya Bicara Santai & Mengajak Keliling (Walkthrough):
+   - Gunakan sapaan akrab: "Halo semuanya!", "Yuk ikut saya room tour...", "Welcome to...", "Nah, sekarang kita masuk ke...".
+   - Alur tur mengalir dari luar ke dalam: Fasad depan/carport -> Ruang tamu/keluarga open space -> Kamar tidur & balkon -> Dapur & fasilitas -> Call-to-action kontak.
+   - Gunakan kata transisi lisan natural: "Begitu melangkah ke dalam...", "Lihat deh pencahayaannya...", "Suasananya adem dan homey banget ya...", "Keren kan layoutnya...", "Kamar utamanya super lega...", "Cocok banget buat kumpul keluarga tercinta...".
+2. BUKAN BACA BROSUR:
+   - DILARANG KERAS membaca spesifikasi teknis mentah seperti "Spesifikasi: 3 kamar tidur, 2 kamar mandi, luas tanah 120".
+   - Wajib diubah menjadi narasi pengalaman ruang: "Di sini ada 3 kamar tidur yang nyaman banget, plus carport luas gak pake ribet parkir!".
+3. Target durasi video: ${duration} detik (sekitar ${wordTarget} dengan jeda intonasi santai dan ekspresif).
+4. Format platform: ${platform} (${platform === 'wa_status' ? 'Status WhatsApp - hangat, to the point, visual' : platform === 'reels_tiktok' ? 'Instagram Reels & TikTok - hook 3 detik pertama memikat hati' : 'Facebook & Feed - berbobot, meyakinkan, prospektif'}).
+5. Tone gaya: ${tone === 'luxurious' ? 'Room tour mewah, elegan, prestisius, arsitektur modern berkelas' : tone === 'urgency_promo' ? 'Room tour promo terbatas, diskon heboh, kesempatan langka' : tone === 'warm_family' ? 'Room tour hangat ramah anak, nyaman, lingkungan tenang impian keluarga' : 'Room tour potensi investasi, lokasi prima, capital gain tinggi'}.
+6. Closing CTA: Ajak penonton dengan ramah segera hubungi WhatsApp ${agentName} (${agencyName}) di nomor ${agentWa || '089673686625'} untuk jadwal survey lokasi bersama agen.`;
 
     const userPrompt = `Detail Properti:
 - Judul Properti: ${title || propertyType || 'Rumah Modern'}

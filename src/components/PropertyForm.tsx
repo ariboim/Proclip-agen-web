@@ -36,7 +36,10 @@ import {
   LayoutGrid,
   Check,
   UserCheck,
+  Volume2,
+  Square,
 } from 'lucide-react';
+import { soundEngine, VOICE_PERSONAS } from '../utils/audioSynthesizer';
 
 export type RoomType = 'exterior' | 'living' | 'bedroom' | 'kitchen' | 'bathroom' | 'other';
 
@@ -154,6 +157,35 @@ export const PropertyForm: React.FC<PropertyFormProps> = ({
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [activeRoomTab, setActiveRoomTab] = useState<'all' | RoomType>('all');
   const [previewPhoto, setPreviewPhoto] = useState<PropertyPhoto | null>(null);
+
+  // Voice audition preview state
+  const [testingVoiceId, setTestingVoiceId] = useState<string | null>(null);
+  const [isLoadingVoiceId, setIsLoadingVoiceId] = useState<string | null>(null);
+
+  const handleTestVoicePersona = async (voiceId: string) => {
+    if (testingVoiceId === voiceId) {
+      soundEngine.stopAllSpeech();
+      setTestingVoiceId(null);
+      setIsLoadingVoiceId(null);
+      return;
+    }
+
+    soundEngine.stopAllSpeech();
+    setIsLoadingVoiceId(voiceId);
+    setTestingVoiceId(voiceId);
+
+    try {
+      await soundEngine.previewVoicePersona(voiceId, () => {
+        setTestingVoiceId((prev) => (prev === voiceId ? null : prev));
+        setIsLoadingVoiceId((prev) => (prev === voiceId ? null : prev));
+      });
+    } catch (err) {
+      console.warn('Voice preview error', err);
+      setTestingVoiceId(null);
+    } finally {
+      setIsLoadingVoiceId((prev) => (prev === voiceId ? null : prev));
+    }
+  };
 
   // Quick Preset Sample Property
   const handleLoadSample = (sampleIndex: number) => {
@@ -955,38 +987,114 @@ export const PropertyForm: React.FC<PropertyFormProps> = ({
             </div>
           </div>
 
-          {/* Voice Actor Selection */}
-          <div className="p-3.5 rounded-2xl bg-orange-50/70 border border-orange-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center">
-                <Mic className="w-4 h-4" />
-              </div>
-              <div>
-                <span className="text-xs font-bold text-slate-900 block">Pilihan Karakter Suara AI Narator:</span>
-                <span className="text-[11px] text-slate-600">Intonasi bahasa Indonesia natural, fasih, dan meyakinkan</span>
+          {/* Voice Actor Selection: Natural Room Tour Host with Test Sound Buttons */}
+          <div className="p-4 sm:p-5 rounded-2xl bg-orange-50/70 border border-orange-200 space-y-3.5 shadow-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-orange-200/70">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center flex-shrink-0">
+                  <Mic className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-xs font-bold text-slate-900 block">Pilihan Pengisi Suara (Voiceover Natural Room Tour):</span>
+                    <span className="text-[10px] font-bold bg-orange-200/80 text-orange-950 px-2 py-0.5 rounded-full">
+                      Suara Manusia Asli HD
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-slate-600">Klik tombol <strong>Tes Suara</strong> di samping nama pengisi suara untuk mendengarkan contoh suaranya sebelum memilih.</span>
+                </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 flex-wrap">
-              {[
-                { name: 'Kore', label: 'Citra (Wanita Elegan)' },
-                { name: 'Fenrir', label: 'Dimas (Pria Berwibawa)' },
-                { name: 'Puck', label: 'Rani (Ceria & Ramah)' },
-                { name: 'Zephyr', label: 'Bayu (Enerjik Hangat)' },
-              ].map((v) => (
-                <button
-                  key={v.name}
-                  type="button"
-                  onClick={() => onChange({ ...formData, voiceName: v.name })}
-                  className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
-                    formData.voiceName === v.name
-                      ? 'bg-orange-500 text-white border-orange-500 shadow-xs'
-                      : 'bg-white text-slate-700 border-orange-200 hover:bg-orange-100'
-                  }`}
-                >
-                  {v.label}
-                </button>
-              ))}
+            {/* Grid of Voice Actors with Test Buttons beside each name */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+              {VOICE_PERSONAS.map((persona) => {
+                const isSelected = (formData.voiceName || 'Kore') === persona.id;
+                const isTesting = testingVoiceId === persona.id;
+                const isLoading = isLoadingVoiceId === persona.id;
+
+                return (
+                  <div
+                    key={persona.id}
+                    onClick={() => onChange({ ...formData, voiceName: persona.id })}
+                    className={`p-3 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between gap-2.5 relative group shadow-2xs ${
+                      isSelected
+                        ? 'bg-white border-orange-500 shadow-md ring-2 ring-orange-400/20'
+                        : 'bg-white/80 hover:bg-white border-orange-200 hover:border-orange-300'
+                    }`}
+                  >
+                    <div>
+                      {/* Top Row: Actor Name + Dedicated "Tes Suara" Button beside it */}
+                      <div className="flex items-center justify-between gap-1.5">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <div
+                            className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black flex-shrink-0 ${
+                              isSelected
+                                ? 'bg-orange-500 text-white'
+                                : 'bg-orange-100 text-orange-800'
+                            }`}
+                          >
+                            {persona.gender === 'female' ? '♀' : '♂'}
+                          </div>
+                          <div className="truncate">
+                            <span className="text-xs font-extrabold text-slate-900 block truncate">
+                              {persona.name}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* BUTTON TEST SUARA DISAMPING NAMA PENGISI SUARA */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleTestVoicePersona(persona.id);
+                          }}
+                          className={`px-2 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer shadow-2xs whitespace-nowrap flex-shrink-0 ${
+                            isTesting
+                              ? 'bg-rose-500 text-white animate-pulse'
+                              : isSelected
+                              ? 'bg-orange-500 hover:bg-orange-600 text-white'
+                              : 'bg-orange-100 hover:bg-orange-200 text-orange-950 border border-orange-300'
+                          }`}
+                          title={`Dengarkan contoh suara ${persona.name} (${persona.role})`}
+                        >
+                          {isLoading ? (
+                            <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                          ) : isTesting ? (
+                            <Square className="w-3 h-3 fill-current" />
+                          ) : (
+                            <Volume2 className="w-3 h-3" />
+                          )}
+                          <span>
+                            {isLoading ? 'Memuat...' : isTesting ? 'Stop' : 'Tes Suara'}
+                          </span>
+                        </button>
+                      </div>
+
+                      {/* Role & Persona Description */}
+                      <div className="mt-1.5">
+                        <span className="text-[10px] font-bold text-orange-800 bg-orange-100/70 px-1.5 py-0.5 rounded border border-orange-200/80 inline-block mb-1">
+                          {persona.badge}
+                        </span>
+                        <p className="text-[11px] text-slate-600 leading-snug">
+                          {persona.role}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Bottom Selection Radio Indicator */}
+                    <div className="pt-2 border-t border-orange-100 flex items-center justify-between text-[11px]">
+                      <span className={`font-bold flex items-center gap-1 ${isSelected ? 'text-orange-600' : 'text-slate-500'}`}>
+                        <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${isSelected ? 'border-orange-500 bg-orange-500 text-white' : 'border-slate-300 bg-white'}`}>
+                          {isSelected && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+                        </span>
+                        {isSelected ? 'Suara Terpilih' : 'Pilih Suara Ini'}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>

@@ -94,7 +94,7 @@ export const AdminPinModal: React.FC<AdminPinModalProps> = ({
                   setUsername(e.target.value);
                   setErrorMessage(null);
                 }}
-                placeholder="Masukkan username (contoh: admin)"
+                placeholder="Masukkan username admin"
                 className="w-full pl-10 pr-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-white placeholder-slate-500 text-xs sm:text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none focus:border-amber-500"
               />
             </div>
@@ -117,7 +117,7 @@ export const AdminPinModal: React.FC<AdminPinModalProps> = ({
                   setPassword(e.target.value);
                   setErrorMessage(null);
                 }}
-                placeholder="Masukkan password admin (8888)"
+                placeholder="Masukkan password admin"
                 className="w-full pl-10 pr-10 py-3 bg-slate-950 border border-slate-700 rounded-xl text-white placeholder-slate-500 text-xs sm:text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none focus:border-amber-500"
               />
               <button
@@ -142,11 +142,12 @@ export const AdminPinModal: React.FC<AdminPinModalProps> = ({
           </div>
         </form>
 
-        {/* Credentials Reminder Box */}
-        <div className="mt-5 p-3 rounded-xl bg-slate-800/80 border border-slate-700 text-center">
-          <span className="text-[11px] text-slate-400 block">
-            Kredensial Default: Username <strong className="text-amber-400 font-mono">admin</strong> • Password <strong className="text-amber-400 font-mono">8888</strong>
-          </span>
+        {/* Security Notice */}
+        <div className="mt-5 text-center">
+          <p className="text-[11px] text-slate-500 flex items-center justify-center gap-1.5">
+            <Lock className="w-3 h-3 text-slate-500" />
+            <span>Kerahasiaan terproteksi • Khusus pengelola sistem resmi</span>
+          </p>
         </div>
       </div>
     </div>

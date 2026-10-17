@@ -108,10 +108,22 @@ export function renderVideoFrame({
   }
   const activeScene = scenes[activeSceneIndex] || scenes[0];
 
-  // Map scene to photo index
-  const photoIndex = activeSceneIndex % photos.length;
+  // Map scene to photo index: Intelligently match specific room photo if uploaded, otherwise cyclic fallback
+  const targetRoom = activeScene.photoTarget;
+  const matchedPhotoIdx = photos.findIndex((p) => p.type === targetRoom);
+  const photoIndex = matchedPhotoIdx !== -1 ? matchedPhotoIdx : (activeSceneIndex % photos.length);
   const currentPhoto = photos[photoIndex];
-  const nextPhoto = photos[(photoIndex + 1) % photos.length];
+
+  // Intelligently match next photo for smooth scene transition
+  const nextScene = scenes[activeSceneIndex + 1];
+  let nextPhotoIndex = (photoIndex + 1) % photos.length;
+  if (nextScene && nextScene.photoTarget) {
+    const nextMatchedIdx = photos.findIndex((p, idx) => idx !== photoIndex && p.type === nextScene.photoTarget);
+    if (nextMatchedIdx !== -1) {
+      nextPhotoIndex = nextMatchedIdx;
+    }
+  }
+  const nextPhoto = photos[nextPhotoIndex];
 
   const currentImg = imagesCache.get(currentPhoto.id);
   const nextImg = nextPhoto ? imagesCache.get(nextPhoto.id) : null;

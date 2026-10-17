@@ -26,7 +26,106 @@ import {
   Plus,
   AlertCircle,
   CheckCircle,
+  Sofa,
+  BedDouble,
+  UtensilsCrossed,
+  Bath,
+  Trees,
+  Eye,
+  X,
+  LayoutGrid,
+  Check,
 } from 'lucide-react';
+
+export type RoomType = 'exterior' | 'living' | 'bedroom' | 'kitchen' | 'bathroom' | 'other';
+
+export interface RoomOption {
+  id: RoomType;
+  label: string;
+  shortLabel: string;
+  icon: React.ComponentType<{ className?: string }>;
+  hint: string;
+  color: string;
+  activeBg: string;
+  badgeClass: string;
+  borderColor: string;
+  defaultLabel: string;
+}
+
+export const ROOM_OPTIONS: RoomOption[] = [
+  {
+    id: 'exterior',
+    label: 'Tampak Luar & Fasad',
+    shortLabel: 'Tampak Luar',
+    icon: Home,
+    hint: 'Tampak depan rumah, fasad arsitektur, carport & jalanan',
+    color: 'text-amber-400',
+    activeBg: 'bg-amber-500/20 text-amber-300 border-amber-400 shadow-amber-500/20',
+    badgeClass: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
+    borderColor: 'border-amber-500/40 hover:border-amber-400',
+    defaultLabel: 'Foto Luar (Tampak Depan Fasad)',
+  },
+  {
+    id: 'living',
+    label: 'Ruang Tamu & Keluarga',
+    shortLabel: 'Ruang Tamu',
+    icon: Sofa,
+    hint: 'Living room utama, void plafon tinggi, area sofa santai & TV',
+    color: 'text-sky-400',
+    activeBg: 'bg-sky-500/20 text-sky-300 border-sky-400 shadow-sky-500/20',
+    badgeClass: 'bg-sky-500/20 text-sky-300 border-sky-500/40',
+    borderColor: 'border-sky-500/40 hover:border-sky-400',
+    defaultLabel: 'Foto Ruang Tamu & Keluarga',
+  },
+  {
+    id: 'bedroom',
+    label: 'Kamar Tidur (Master & Anak)',
+    shortLabel: 'Kamar Tidur',
+    icon: BedDouble,
+    hint: 'Master bedroom, tempat tidur nyaman, pencahayaan alami & lemari',
+    color: 'text-indigo-400',
+    activeBg: 'bg-indigo-500/20 text-indigo-300 border-indigo-400 shadow-indigo-500/20',
+    badgeClass: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40',
+    borderColor: 'border-indigo-500/40 hover:border-indigo-400',
+    defaultLabel: 'Foto Kamar Tidur',
+  },
+  {
+    id: 'kitchen',
+    label: 'Dapur & Ruang Makan',
+    shortLabel: 'Dapur & Makan',
+    icon: UtensilsCrossed,
+    hint: 'Kitchen set modern, meja makan keluarga, minibar & island marmer',
+    color: 'text-emerald-400',
+    activeBg: 'bg-emerald-500/20 text-emerald-300 border-emerald-400 shadow-emerald-500/20',
+    badgeClass: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
+    borderColor: 'border-emerald-500/40 hover:border-emerald-400',
+    defaultLabel: 'Foto Dapur & Ruang Makan',
+  },
+  {
+    id: 'bathroom',
+    label: 'Kamar Mandi',
+    shortLabel: 'Kamar Mandi',
+    icon: Bath,
+    hint: 'Sanitary mewah, shower box, wastafel marmer & water heater',
+    color: 'text-cyan-400',
+    activeBg: 'bg-cyan-500/20 text-cyan-300 border-cyan-400 shadow-cyan-500/20',
+    badgeClass: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40',
+    borderColor: 'border-cyan-500/40 hover:border-cyan-400',
+    defaultLabel: 'Foto Kamar Mandi',
+  },
+  {
+    id: 'other',
+    label: 'Taman, Balkon & Fasilitas',
+    shortLabel: 'Taman & Balkon',
+    icon: Trees,
+    hint: 'Taman belakang asri, balkon view, rooftop, kolam renang atau area cuci',
+    color: 'text-rose-400',
+    activeBg: 'bg-rose-500/20 text-rose-300 border-rose-400 shadow-rose-500/20',
+    badgeClass: 'bg-rose-500/20 text-rose-300 border-rose-500/40',
+    borderColor: 'border-rose-500/40 hover:border-rose-400',
+    defaultLabel: 'Foto Taman / Balkon / Fasilitas',
+  },
+];
 
 interface PropertyFormProps {
   formData: PropertyFormData;
@@ -52,6 +151,8 @@ export const PropertyForm: React.FC<PropertyFormProps> = ({
   onOpenProfile,
 }) => {
   const [photoError, setPhotoError] = useState<string | null>(null);
+  const [activeRoomTab, setActiveRoomTab] = useState<'all' | RoomType>('all');
+  const [previewPhoto, setPreviewPhoto] = useState<PropertyPhoto | null>(null);
 
   // Quick Preset Sample Property
   const handleLoadSample = (sampleIndex: number) => {
@@ -64,30 +165,45 @@ export const PropertyForm: React.FC<PropertyFormProps> = ({
     setPhotoError(null);
   };
 
-  // Upload Photo File
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>, targetType: 'exterior' | 'interior') => {
+  // Upload Photo File directly to specific room
+  const handleUploadToRoom = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    targetRoom: RoomType
+  ) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    Array.from(files).forEach((file, index) => {
+    const roomConfig = ROOM_OPTIONS.find((r) => r.id === targetRoom);
+    const roomTitle = roomConfig ? roomConfig.shortLabel : 'Ruangan';
+
+    const fileList = Array.from(files);
+    let processed = 0;
+    const newPhotos: PropertyPhoto[] = [];
+
+    fileList.forEach((file, index) => {
       const reader = new FileReader();
       reader.onload = () => {
         if (typeof reader.result === 'string') {
-          const newPhoto: PropertyPhoto = {
-            id: `photo_${Date.now()}_${index}`,
-            type: targetType === 'exterior' ? 'exterior' : 'interior',
-            label: targetType === 'exterior' ? 'Foto Luar (Eksterior)' : `Foto Dalam (Interior #${formData.photos.length + 1})`,
+          newPhotos.push({
+            id: `photo_${Date.now()}_${index}_${Math.random().toString(36).slice(2, 6)}`,
+            type: targetRoom,
+            label: `Foto ${roomTitle} #${formData.photos.filter((p) => p.type === targetRoom).length + newPhotos.length + 1}`,
             dataUrl: reader.result,
-          };
+          });
+        }
+        processed++;
+        if (processed === fileList.length) {
           onChange({
             ...formData,
-            photos: [...formData.photos, newPhoto],
+            photos: [...formData.photos, ...newPhotos],
           });
           setPhotoError(null);
         }
       };
       reader.readAsDataURL(file);
     });
+    // Reset file input value so user can upload identical file names if needed
+    e.target.value = '';
   };
 
   // Remove photo
@@ -98,12 +214,14 @@ export const PropertyForm: React.FC<PropertyFormProps> = ({
     });
   };
 
-  // Change photo type label
-  const handleChangePhotoType = (id: string, newType: any, newLabel: string) => {
+  // Instant 1-Click switch photo room (NO DROPDOWN)
+  const handleSwitchPhotoRoom = (id: string, newRoomType: RoomType) => {
+    const roomConfig = ROOM_OPTIONS.find((r) => r.id === newRoomType);
+    const label = roomConfig ? roomConfig.defaultLabel : 'Foto Properti';
     onChange({
       ...formData,
       photos: formData.photos.map((p) =>
-        p.id === id ? { ...p, type: newType, label: newLabel } : p
+        p.id === id ? { ...p, type: newRoomType, label } : p
       ),
     });
   };
@@ -123,8 +241,18 @@ export const PropertyForm: React.FC<PropertyFormProps> = ({
     onSubmit();
   };
 
-  const exteriorPhotos = formData.photos.filter((p) => p.type === 'exterior');
-  const interiorPhotos = formData.photos.filter((p) => p.type !== 'exterior');
+  // Helper count per room
+  const getRoomPhotoCount = (roomType: RoomType) => {
+    return formData.photos.filter((p) => p.type === roomType).length;
+  };
+
+  // Photos to display based on active room tab
+  const displayedPhotos =
+    activeRoomTab === 'all'
+      ? formData.photos
+      : formData.photos.filter((p) => p.type === activeRoomTab);
+
+  const activeRoomConfig = ROOM_OPTIONS.find((r) => r.id === activeRoomTab);
 
   return (
     <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl text-slate-100">
@@ -165,16 +293,23 @@ export const PropertyForm: React.FC<PropertyFormProps> = ({
       </div>
 
       <form onSubmit={handleFormSubmit} className="space-y-8">
-        {/* SECTION 1: PHOTO UPLOADER (FOTO LUAR & FOTO DALAM) */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <label className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-              <ImageIcon className="w-4 h-4 text-amber-400" />
-              Materi Foto Properti (Foto Luar & Foto Dalam)
-            </label>
-            <span className="text-xs text-slate-400">
-              {formData.photos.length} Foto Dimuat
-            </span>
+        {/* SECTION 1: PHOTO UPLOADER PER PILIHAN RUANGAN */}
+        <div className="space-y-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <label className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                <ImageIcon className="w-4 h-4 text-amber-400" />
+                Upload Foto Berdasarkan Ruangan
+              </label>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Setiap pilihan ruangan memiliki tombol upload langsung. Pilih tab ruangan untuk fokus upload atau gunakan mode grid.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="px-3 py-1 rounded-full bg-slate-800 border border-slate-700 text-xs font-semibold text-amber-300">
+                Total: {formData.photos.length} Foto Dimuat
+              </span>
+            </div>
           </div>
 
           {photoError && (
@@ -184,126 +319,321 @@ export const PropertyForm: React.FC<PropertyFormProps> = ({
             </div>
           )}
 
-          {/* Upload Dropzones */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Foto Luar Upload Button */}
-            <div className="p-4 rounded-2xl bg-slate-800/60 border border-dashed border-amber-500/40 hover:border-amber-400 transition-colors">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
-                  <Home className="w-3.5 h-3.5" /> FOTO LUAR (Eksterior / Tampak Depan)
+          {/* INTERACTIVE ROOM SWITCH BUTTONS (TAB PILIHAN RUANGAN) */}
+          <div className="space-y-2">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+              <Layers className="w-3.5 h-3.5 text-amber-400" />
+              Pilih Ruangan untuk Upload / Filter:
+            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              {/* All Rooms Tab Button */}
+              <button
+                type="button"
+                onClick={() => setActiveRoomTab('all')}
+                className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                  activeRoomTab === 'all'
+                    ? 'bg-gradient-to-r from-amber-500/30 to-orange-500/30 border-amber-400 text-amber-300 shadow-lg shadow-amber-500/20 scale-105'
+                    : 'bg-slate-800/80 hover:bg-slate-700/80 border-slate-700 text-slate-300 hover:text-white'
+                }`}
+              >
+                <LayoutGrid className="w-3.5 h-3.5" />
+                <span>Semua Ruangan</span>
+                <span className="ml-1 px-1.5 py-0.2 rounded-full bg-slate-900 text-[10px] text-slate-300 border border-slate-700">
+                  {formData.photos.length}
                 </span>
-                <span className="text-[11px] text-slate-400">{exteriorPhotos.length} foto</span>
-              </div>
-              <label className="flex flex-col items-center justify-center p-4 rounded-xl bg-slate-900/60 hover:bg-slate-900 border border-slate-700 hover:border-amber-500/50 cursor-pointer transition-all">
-                <Upload className="w-6 h-6 text-amber-400 mb-1.5" />
-                <span className="text-xs font-semibold text-white">Upload Foto Luar</span>
-                <span className="text-[10px] text-slate-400 mt-0.5">Tampak depan, fasad, carport</span>
-                <input
-                  type="file"
-                  multiple
-                  accept="image/*"
-                  onChange={(e) => handlePhotoUpload(e, 'exterior')}
-                  className="hidden"
-                />
-              </label>
-            </div>
+              </button>
 
-            {/* Foto Dalam Upload Button */}
-            <div className="p-4 rounded-2xl bg-slate-800/60 border border-dashed border-sky-500/40 hover:border-sky-400 transition-colors">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-bold text-sky-400 flex items-center gap-1.5">
-                  <Layers className="w-3.5 h-3.5" /> FOTO DALAM (Interior / Ruangan)
-                </span>
-                <span className="text-[11px] text-slate-400">{interiorPhotos.length} foto</span>
-              </div>
-              <label className="flex flex-col items-center justify-center p-4 rounded-xl bg-slate-900/60 hover:bg-slate-900 border border-slate-700 hover:border-sky-500/50 cursor-pointer transition-all">
-                <Upload className="w-6 h-6 text-sky-400 mb-1.5" />
-                <span className="text-xs font-semibold text-white">Upload Foto Dalam</span>
-                <span className="text-[10px] text-slate-400 mt-0.5">Ruang tamu, kamar tidur, dapur</span>
-                <input
-                  type="file"
-                  multiple
-                  accept="image/*"
-                  onChange={(e) => handlePhotoUpload(e, 'interior')}
-                  className="hidden"
-                />
-              </label>
+              {/* Room Specific Tab Buttons */}
+              {ROOM_OPTIONS.map((room) => {
+                const IconComponent = room.icon;
+                const count = getRoomPhotoCount(room.id);
+                const isActive = activeRoomTab === room.id;
+                return (
+                  <button
+                    key={room.id}
+                    type="button"
+                    onClick={() => setActiveRoomTab(room.id)}
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                      isActive
+                        ? `${room.activeBg} border-2 scale-105 shadow-md`
+                        : 'bg-slate-800/80 hover:bg-slate-700/80 border-slate-700 text-slate-300 hover:text-white'
+                    }`}
+                  >
+                    <IconComponent className={`w-3.5 h-3.5 ${isActive ? '' : room.color}`} />
+                    <span>{room.shortLabel}</span>
+                    <span
+                      className={`ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                        count > 0
+                          ? 'bg-amber-400 text-slate-950 font-black'
+                          : 'bg-slate-900 text-slate-400 border border-slate-700'
+                      }`}
+                    >
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
-          {/* Photo Gallery Grid */}
-          {formData.photos.length > 0 && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
-              {formData.photos.map((photo, index) => (
-                <div
-                  key={photo.id}
-                  className="group relative rounded-2xl overflow-hidden bg-slate-950 border border-slate-700 shadow-md aspect-video sm:aspect-square flex flex-col justify-end"
-                >
-                  <img
-                    src={photo.dataUrl}
-                    alt={photo.label}
-                    className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent pointer-events-none" />
-
-                  {/* Top Badge: Photo Index & Type */}
-                  <div className="absolute top-2 left-2 flex items-center gap-1">
-                    <span className="px-2 py-0.5 rounded-md bg-slate-950/80 text-[10px] font-bold text-white border border-slate-700">
-                      #{index + 1}
-                    </span>
-                    <span
-                      className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
-                        photo.type === 'exterior'
-                          ? 'bg-amber-500/90 text-slate-950'
-                          : 'bg-sky-500/90 text-slate-950'
-                      }`}
-                    >
-                      {photo.type === 'exterior' ? 'Luar' : 'Dalam'}
-                    </span>
+          {/* DEDICATED UPLOAD MODE VIEW */}
+          {activeRoomTab !== 'all' && activeRoomConfig && (
+            <div className="p-5 rounded-2xl bg-gradient-to-b from-slate-800/80 to-slate-900 border-2 border-dashed border-amber-500/50 shadow-xl transition-all">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                <div className="flex items-center gap-3">
+                  <div className={`p-3 rounded-xl bg-slate-900/90 border border-slate-700 ${activeRoomConfig.color}`}>
+                    <activeRoomConfig.icon className="w-6 h-6" />
                   </div>
-
-                  {/* Delete button */}
-                  <button
-                    type="button"
-                    onClick={() => handleRemovePhoto(photo.id)}
-                    className="absolute top-2 right-2 p-1.5 rounded-lg bg-rose-900/80 hover:bg-rose-600 text-white transition-colors cursor-pointer"
-                    title="Hapus Foto"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-
-                  {/* Label Selector */}
-                  <div className="relative p-2 z-10">
-                    <select
-                      value={photo.type}
-                      onChange={(e) => {
-                        const val = e.target.value as any;
-                        const labelText =
-                          val === 'exterior'
-                            ? 'Foto Luar (Eksterior)'
-                            : val === 'living'
-                            ? 'Foto Ruang Tamu'
-                            : val === 'bedroom'
-                            ? 'Foto Kamar Tidur'
-                            : val === 'kitchen'
-                            ? 'Foto Dapur'
-                            : 'Foto Dalam (Interior)';
-                        handleChangePhotoType(photo.id, val, labelText);
-                      }}
-                      className="w-full text-[11px] bg-slate-900/90 border border-slate-700 text-slate-200 rounded-lg px-2 py-1 focus:outline-none"
-                    >
-                      <option value="exterior">Tampak Luar</option>
-                      <option value="living">Ruang Tamu</option>
-                      <option value="bedroom">Kamar Tidur</option>
-                      <option value="kitchen">Dapur</option>
-                      <option value="interior">Interior Lain</option>
-                    </select>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-base font-bold text-white font-['Outfit']">
+                        Mode Upload: {activeRoomConfig.label}
+                      </h4>
+                      <span className="px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 text-[11px] font-bold border border-amber-400/30">
+                        {getRoomPhotoCount(activeRoomConfig.id)} Foto
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      {activeRoomConfig.hint}
+                    </p>
                   </div>
                 </div>
-              ))}
+
+                <div className="flex items-center gap-2">
+                  <label className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/25 cursor-pointer transition-transform hover:scale-105">
+                    <Upload className="w-4 h-4 stroke-[2.5]" />
+                    <span>Upload Foto {activeRoomConfig.shortLabel}</span>
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      onChange={(e) => handleUploadToRoom(e, activeRoomConfig.id)}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+              </div>
+
+              {/* Fast Drag & Drop Zone */}
+              <label className="flex flex-col items-center justify-center p-6 rounded-xl bg-slate-950/60 hover:bg-slate-950 border border-slate-700/80 hover:border-amber-400/60 cursor-pointer transition-all text-center group">
+                <div className="w-12 h-12 rounded-full bg-amber-500/10 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                  <Upload className="w-6 h-6 text-amber-400" />
+                </div>
+                <span className="text-xs font-bold text-white">
+                  Klik untuk Jelajahi File atau Drag & Drop Foto {activeRoomConfig.shortLabel} di Sini
+                </span>
+                <span className="text-[11px] text-slate-400 mt-1 max-w-md">
+                  Mendukung JPG, PNG, WEBP. Anda dapat memilih beberapa foto sekaligus untuk ruangan ini.
+                </span>
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  onChange={(e) => handleUploadToRoom(e, activeRoomConfig.id)}
+                  className="hidden"
+                />
+              </label>
             </div>
           )}
+
+          {/* ALL ROOMS GRID UPLOAD MODE (Setiap Ruangan Memiliki Kotak Upload Langsung) */}
+          {activeRoomTab === 'all' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {ROOM_OPTIONS.map((room) => {
+                const IconComponent = room.icon;
+                const count = getRoomPhotoCount(room.id);
+                return (
+                  <div
+                    key={room.id}
+                    className="p-4 rounded-2xl bg-slate-800/60 border border-dashed border-slate-700 hover:border-amber-500/50 transition-colors flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className={`text-xs font-bold flex items-center gap-1.5 ${room.color}`}>
+                          <IconComponent className="w-4 h-4" />
+                          {room.label}
+                        </span>
+                        <span
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                            count > 0
+                              ? 'bg-amber-400/20 text-amber-300 border border-amber-400/30'
+                              : 'bg-slate-900 text-slate-400'
+                          }`}
+                        >
+                          {count} foto
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-400 mb-3 line-clamp-2">
+                        {room.hint}
+                      </p>
+                    </div>
+
+                    <label className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-slate-900/80 hover:bg-slate-900 border border-slate-700 hover:border-amber-400 text-white text-xs font-semibold cursor-pointer transition-all group">
+                      <Upload className="w-3.5 h-3.5 text-amber-400 group-hover:-translate-y-0.5 transition-transform" />
+                      <span>Upload {room.shortLabel}</span>
+                      <input
+                        type="file"
+                        multiple
+                        accept="image/*"
+                        onChange={(e) => handleUploadToRoom(e, room.id)}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* PHOTO GALLERY GRID WITH 1-CLICK INSTANT ROOM SWITCHER (NO DROPDOWN) */}
+          <div className="space-y-3 pt-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                <ImageIcon className="w-4 h-4 text-amber-400" />
+                {activeRoomTab === 'all'
+                  ? `Semua Foto Properti (${formData.photos.length})`
+                  : `Foto Ruangan ${activeRoomConfig?.label} (${displayedPhotos.length})`}
+              </span>
+              {activeRoomTab !== 'all' && (
+                <button
+                  type="button"
+                  onClick={() => setActiveRoomTab('all')}
+                  className="text-xs text-amber-400 hover:underline cursor-pointer"
+                >
+                  Tampilkan Semua Ruangan →
+                </button>
+              )}
+            </div>
+
+            {displayedPhotos.length === 0 ? (
+              <div className="p-8 rounded-2xl bg-slate-950/40 border border-slate-800 text-center">
+                <ImageIcon className="w-10 h-10 text-slate-600 mx-auto mb-2" />
+                <p className="text-sm font-semibold text-slate-400">
+                  {activeRoomTab === 'all'
+                    ? 'Belum ada foto yang diupload.'
+                    : `Belum ada foto untuk ${activeRoomConfig?.label}.`}
+                </p>
+                <p className="text-xs text-slate-500 mt-1">
+                  Gunakan tombol upload di atas untuk menambahkan foto ruangan ini.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {displayedPhotos.map((photo, index) => {
+                  const currentRoom = ROOM_OPTIONS.find((r) => r.id === photo.type) || ROOM_OPTIONS[0];
+                  const Icon = currentRoom.icon;
+                  return (
+                    <div
+                      key={photo.id}
+                      className="group relative rounded-2xl overflow-hidden bg-slate-950 border border-slate-700 hover:border-slate-500 shadow-md flex flex-col justify-between transition-all"
+                    >
+                      {/* Image Thumbnail Container */}
+                      <div className="relative aspect-video sm:aspect-square overflow-hidden bg-slate-900">
+                        <img
+                          src={photo.dataUrl}
+                          alt={photo.label}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-black/40 pointer-events-none" />
+
+                        {/* Top Badges */}
+                        <div className="absolute top-2 left-2 flex items-center gap-1.5 z-10">
+                          <span className="px-2 py-0.5 rounded-md bg-slate-950/90 text-[10px] font-bold text-white border border-slate-700">
+                            #{index + 1}
+                          </span>
+                          <span
+                            className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold border ${currentRoom.badgeClass}`}
+                          >
+                            <Icon className="w-3 h-3" />
+                            {currentRoom.shortLabel}
+                          </span>
+                        </div>
+
+                        {/* Action Buttons on Image */}
+                        <div className="absolute top-2 right-2 flex items-center gap-1 z-10">
+                          <button
+                            type="button"
+                            onClick={() => setPreviewPhoto(photo)}
+                            className="p-1.5 rounded-lg bg-slate-900/80 hover:bg-slate-800 text-slate-200 transition-colors cursor-pointer"
+                            title="Perbesar Foto"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRemovePhoto(photo.id)}
+                            className="p-1.5 rounded-lg bg-rose-900/80 hover:bg-rose-600 text-white transition-colors cursor-pointer"
+                            title="Hapus Foto"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* 1-CLICK INSTANT ROOM SWITCHER BUTTONS (NO DROPDOWN!) */}
+                      <div className="p-2.5 bg-slate-900/95 border-t border-slate-800 space-y-1.5">
+                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                          <span>Pindah Ruangan:</span>
+                          <span className="text-amber-400 font-semibold">{currentRoom.shortLabel}</span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-1">
+                          {ROOM_OPTIONS.map((r) => {
+                            const isCurrent = photo.type === r.id;
+                            const RIcon = r.icon;
+                            return (
+                              <button
+                                key={r.id}
+                                type="button"
+                                onClick={() => handleSwitchPhotoRoom(photo.id, r.id)}
+                                title={`Pindahkan foto ini ke ${r.label}`}
+                                className={`flex items-center justify-center gap-1 px-1.5 py-1 rounded-lg text-[10px] font-semibold border transition-all cursor-pointer ${
+                                  isCurrent
+                                    ? 'bg-amber-500 text-slate-950 border-amber-400 font-black shadow-sm'
+                                    : 'bg-slate-800/90 hover:bg-slate-700 text-slate-300 border-slate-700 hover:text-white'
+                                }`}
+                              >
+                                <RIcon className="w-2.5 h-2.5 flex-shrink-0" />
+                                <span className="truncate">{r.shortLabel}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
+
+        {/* FULL IMAGE PREVIEW MODAL */}
+        {previewPhoto && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md animate-in fade-in duration-200">
+            <div className="relative max-w-3xl w-full bg-slate-900 border border-slate-700 rounded-3xl overflow-hidden shadow-2xl">
+              <div className="p-4 flex items-center justify-between border-b border-slate-800">
+                <span className="text-sm font-bold text-white flex items-center gap-2">
+                  <ImageIcon className="w-4 h-4 text-amber-400" />
+                  {previewPhoto.label}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setPreviewPhoto(null)}
+                  className="p-1.5 rounded-full hover:bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-4 bg-slate-950 flex items-center justify-center max-h-[75vh] overflow-hidden">
+                <img
+                  src={previewPhoto.dataUrl}
+                  alt={previewPhoto.label}
+                  className="max-h-[70vh] w-auto object-contain rounded-xl"
+                />
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* SECTION 2: PROPERTI SPESIFIKASI (LT, LB, KT, KM, HARGA, LOKASI) */}
         <div className="space-y-4 pt-4 border-t border-slate-800">

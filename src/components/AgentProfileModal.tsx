@@ -9,6 +9,8 @@ interface AgentProfileModalProps {
   onClose: () => void;
   currentProfile: AgentProfile;
   onSaveProfile: (updated: AgentProfile) => void;
+  onRegistrationSuccess?: () => void;
+  mustRegisterFirst?: boolean;
 }
 
 const PRESET_AGENCIES = [
@@ -25,6 +27,8 @@ export const AgentProfileModal: React.FC<AgentProfileModalProps> = ({
   onClose,
   currentProfile,
   onSaveProfile,
+  onRegistrationSuccess,
+  mustRegisterFirst = false,
 }) => {
   const [name, setName] = useState(currentProfile.name || '');
   const [whatsapp, setWhatsapp] = useState(currentProfile.whatsapp || '');
@@ -56,6 +60,11 @@ export const AgentProfileModal: React.FC<AgentProfileModalProps> = ({
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
+
+    // Request browser notification permission proactively for video completion notification
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission().catch(() => {});
+    }
 
     let finalLogo = agencyLogoUrl;
     if (!finalLogo) {
@@ -89,13 +98,18 @@ export const AgentProfileModal: React.FC<AgentProfileModalProps> = ({
     setTimeout(() => {
       setSavedSuccess(false);
       onClose();
-    }, 1200);
+      if (onRegistrationSuccess) {
+        onRegistrationSuccess();
+      }
+    }, 1500);
   };
+
+  const isAlreadyRegistered = currentProfile.isRegistered;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="relative w-full max-w-lg bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl text-slate-100 max-h-[90vh] overflow-y-auto">
-        {/* Close Button */}
+        {/* Close Button - allow closing if already registered or user wants to browse */}
         <button
           onClick={onClose}
           className="absolute top-5 right-5 p-2 rounded-full text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
@@ -107,20 +121,31 @@ export const AgentProfileModal: React.FC<AgentProfileModalProps> = ({
         <div className="mb-6">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-semibold mb-3">
             <Shield className="w-3.5 h-3.5" />
-            Langkah 1: Identitas & Branding Agen
+            {isAlreadyRegistered ? 'Pengaturan Profil Agen' : 'Wajib Registrasi: Akses Demo & Generator'}
           </div>
           <h2 className="text-2xl font-bold font-['Outfit'] text-white">
-            Registrasi Profil & Logo Agency
+            {isAlreadyRegistered ? 'Update Profil & Logo Agency' : 'Daftar Akun Agen Properti'}
           </h2>
           <p className="text-sm text-slate-400 mt-1">
-            Data ini akan otomatis muncul sebagai watermark logo, lower-third, dan nomor WhatsApp resmi di seluruh video yang Anda generate.
+            {isAlreadyRegistered
+              ? 'Data ini akan otomatis muncul sebagai watermark logo, lower-third, dan nomor WhatsApp resmi di video promosi Anda.'
+              : 'Wajib mendaftar terlebih dahulu untuk mengaktifkan demo gratis 5 token dan mulai membuat video promosi properti sinematik.'}
           </p>
         </div>
 
         {savedSuccess && (
-          <div className="mb-6 p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 flex items-center gap-3">
-            <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
-            <span className="text-sm font-semibold">Profil & Logo Agen Berhasil Disimpan!</span>
+          <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-emerald-500/20 to-teal-500/20 border-2 border-emerald-500/50 text-emerald-200 flex items-center gap-3.5 shadow-lg shadow-emerald-950/40 animate-in zoom-in-95 duration-200">
+            <div className="w-8 h-8 rounded-xl bg-emerald-500 text-slate-950 flex items-center justify-center flex-shrink-0 font-black">
+              ✓
+            </div>
+            <div>
+              <p className="text-sm font-black text-white capitalize">
+                registrasi sukses ,silakan buat video sekarang
+              </p>
+              <p className="text-xs text-emerald-300 mt-0.5">
+                Bonus 5 token demo aktif. Mengarahkan Anda ke form video...
+              </p>
+            </div>
           </div>
         )}
 

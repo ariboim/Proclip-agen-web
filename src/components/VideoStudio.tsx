@@ -117,6 +117,12 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
       logoImageRef.current = logoImage;
       setIsAssetsReady(true);
       drawCurrentFrame(0);
+      // Automatically start video preview playback as requested
+      setTimeout(() => {
+        if (isMounted) {
+          setIsPlaying(true);
+        }
+      }, 300);
     });
     return () => {
       isMounted = false;
@@ -281,18 +287,18 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
   const waShareUrl = `https://wa.me/6289673686625?text=Halo%20Admin%20PropertiClip%2C%20saya%20sudah%20generate%20video%20promosi%20properti%20untuk%20listing%20saya%20dan%20tertarik%20konsultasi%20strategi%20posting%20iklan.`;
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl text-slate-100">
+    <div className="bg-white border-2 border-orange-200/90 rounded-3xl p-6 sm:p-8 shadow-xl text-slate-800">
       {/* Top Bar: Back & Status */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-800 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-orange-200 mb-6">
         <div>
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold mb-2">
-            <Check className="w-3.5 h-3.5" />
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-300 text-emerald-800 text-xs font-bold mb-2">
+            <Check className="w-3.5 h-3.5 text-emerald-600" />
             Langkah 3: Review & Edit Video Sebelum Download
           </div>
-          <h2 className="text-xl sm:text-2xl font-bold font-['Outfit'] text-white">
+          <h2 className="text-xl sm:text-2xl font-bold font-['Outfit'] text-slate-900">
             Studio Editor Video Promosi Properti
           </h2>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1">
+          <p className="text-xs sm:text-sm text-slate-600 mt-1">
             Sesuaikan naskah, volume audio, posisi logo agency, atau langsung unduh video siap posting.
           </p>
         </div>
@@ -300,7 +306,7 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
         <div className="flex items-center gap-3">
           <button
             onClick={onBackToForm}
-            className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold border border-slate-700 transition-colors cursor-pointer"
+            className="px-4 py-2 rounded-xl bg-orange-50 hover:bg-orange-100 text-orange-950 text-xs font-bold border border-orange-300 transition-colors cursor-pointer shadow-xs"
           >
             ← Ubah Form / Foto
           </button>
@@ -308,7 +314,7 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
           <button
             onClick={handleExport}
             disabled={isExporting}
-            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white text-xs font-bold shadow-lg shadow-emerald-950/40 flex items-center gap-2 transition-all hover:scale-[1.02] cursor-pointer"
+            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white text-xs font-bold shadow-md flex items-center gap-2 transition-all hover:scale-[1.02] cursor-pointer"
           >
             <Download className="w-4 h-4" />
             Download Video ({settings.aspectRatio})
@@ -320,6 +326,19 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* LEFT COLUMN: REAL-TIME VIDEO PLAYER */}
         <div className="lg:col-span-5 flex flex-col items-center">
+          {/* Automatic Preview Notification Banner */}
+          <div className="w-full max-w-[420px] mb-3 p-3 rounded-2xl bg-orange-50/90 border border-orange-300 text-orange-950 text-xs flex items-center justify-between gap-2 shadow-xs">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
+              <span className="font-bold text-slate-900">
+                Pratinjau Otomatis: Tonton video sebelum diunduh atau dibagikan
+              </span>
+            </div>
+            <span className="text-[10px] uppercase font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 whitespace-nowrap">
+              LIVE PREVIEW
+            </span>
+          </div>
+
           {/* Canvas Wrapper with aspect ratio styling */}
           <div
             className={`relative rounded-3xl overflow-hidden bg-slate-950 shadow-2xl border-2 border-slate-800 flex items-center justify-center ${
@@ -446,13 +465,13 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
         {/* RIGHT COLUMN: TABBED VIDEO EDITOR SUITE */}
         <div className="lg:col-span-7 space-y-6">
           {/* Navigation Tabs */}
-          <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-slate-800/80 border border-slate-700 overflow-x-auto">
+          <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-orange-50/80 border border-orange-200 overflow-x-auto shadow-xs">
             <button
               onClick={() => setActiveTab('script')}
               className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
                 activeTab === 'script'
-                  ? 'bg-amber-500 text-slate-950 shadow-md'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-orange-500 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-orange-100/60'
               }`}
             >
               <Type className="w-3.5 h-3.5" />
@@ -462,11 +481,11 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
               onClick={() => setActiveTab('transitions')}
               className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
                 activeTab === 'transitions'
-                  ? 'bg-amber-500 text-slate-950 shadow-md'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-orange-500 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-orange-100/60'
               }`}
             >
-              <Film className="w-3.5 h-3.5 text-rose-400" />
+              <Film className="w-3.5 h-3.5 text-rose-500" />
               Transisi Sinematik
               <span className="px-1.5 py-0.5 rounded-md bg-rose-500 text-white text-[9px] font-black uppercase tracking-wider">
                 PRO
@@ -476,8 +495,8 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
               onClick={() => setActiveTab('audio')}
               className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
                 activeTab === 'audio'
-                  ? 'bg-amber-500 text-slate-950 shadow-md'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-orange-500 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-orange-100/60'
               }`}
             >
               <Music className="w-3.5 h-3.5" />
@@ -487,8 +506,8 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
               onClick={() => setActiveTab('branding')}
               className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
                 activeTab === 'branding'
-                  ? 'bg-amber-500 text-slate-950 shadow-md'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-orange-500 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-orange-100/60'
               }`}
             >
               <Shield className="w-3.5 h-3.5" />
@@ -498,8 +517,8 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
               onClick={() => setActiveTab('captions')}
               className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
                 activeTab === 'captions'
-                  ? 'bg-amber-500 text-slate-950 shadow-md'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-orange-500 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-orange-100/60'
               }`}
             >
               <Palette className="w-3.5 h-3.5" />
@@ -509,14 +528,14 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
 
           {/* TAB 1: EDIT NASKAH & NARASI AI */}
           {activeTab === 'script' && (
-            <div className="space-y-4 p-5 rounded-2xl bg-slate-800/40 border border-slate-700/60 animate-in fade-in duration-150">
+            <div className="space-y-4 p-5 rounded-2xl bg-orange-50/40 border border-orange-200/80 animate-in fade-in duration-150 shadow-xs">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-amber-400" />
+                  <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-orange-600" />
                     Edit Teks Naskah Narasi AI
                   </h3>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-slate-600">
                     Bebas sesuaikan kata-kata agar semakin pas dengan gaya bicara Anda.
                   </p>
                 </div>
@@ -524,9 +543,9 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
                   type="button"
                   onClick={onRegenerateScript}
                   disabled={isRegenerating}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-semibold transition-colors cursor-pointer"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-100 hover:bg-orange-200 text-orange-950 border border-orange-300 text-xs font-bold transition-colors cursor-pointer shadow-xs"
                 >
-                  <Sparkles className="w-3.5 h-3.5" />
+                  <Sparkles className="w-3.5 h-3.5 text-orange-600" />
                   {isRegenerating ? 'Meracik...' : 'Regenerate Naskah AI'}
                 </button>
               </div>

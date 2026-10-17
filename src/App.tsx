@@ -24,7 +24,30 @@ import { TestimonialsFAQ } from './components/TestimonialsFAQ';
 import { Footer } from './components/Footer';
 import { AdminDashboard } from './components/AdminDashboard';
 import { AdminPinModal } from './components/AdminPinModal';
+import { LiveProgressModal } from './components/LiveProgressModal';
+import { Bell, CheckCircle2, X, Home as HomeIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import confetti from 'canvas-confetti';
+
+function playNotificationChime() {
+  try {
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+    osc.frequency.setValueAtTime(880.0, ctx.currentTime + 0.15);
+    gain.gain.setValueAtTime(0.2, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.7);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.75);
+  } catch (e) {
+    // Ignore audio errors if blocked
+  }
+}
 
 // Intelligent Fallback Script Generator tailored to property data
 function generateIntelligentScript(data: PropertyFormData, agent: AgentProfile): GeneratedVideoScript {
@@ -235,6 +258,61 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState('');
 
+  // Page Navigation state ('home' | 'form' | 'studio' | 'pricing')
+  const [currentPage, setCurrentPage] = useState<'home' | 'form' | 'studio' | 'pricing'>('home');
+
+  const handleGoHome = () => {
+    setCurrentPage('home');
+    const el = document.getElementById('hero');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth' });
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const handleGoPrev = () => {
+    if (currentPage === 'pricing') {
+      setCurrentPage('studio');
+      setActiveView('studio');
+      const el = document.getElementById('generator-section');
+      el?.scrollIntoView({ behavior: 'smooth' });
+    } else if (currentPage === 'studio') {
+      setCurrentPage('form');
+      setActiveView('form');
+      const el = document.getElementById('generator-section');
+      el?.scrollIntoView({ behavior: 'smooth' });
+    } else if (currentPage === 'form') {
+      handleGoHome();
+    }
+  };
+
+  const handleGoNext = () => {
+    if (currentPage === 'home') {
+      setCurrentPage('form');
+      setActiveView('form');
+      const el = document.getElementById('generator-section');
+      el?.scrollIntoView({ behavior: 'smooth' });
+    } else if (currentPage === 'form') {
+      setCurrentPage('studio');
+      setActiveView('studio');
+      const el = document.getElementById('generator-section');
+      el?.scrollIntoView({ behavior: 'smooth' });
+    } else if (currentPage === 'studio') {
+      setCurrentPage('pricing');
+      const el = document.getElementById('pricing');
+      el?.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  // Live Video Progress & Push Notification state
+  const [isLiveProgressOpen, setIsLiveProgressOpen] = useState(false);
+  const [liveProgressPercent, setLiveProgressPercent] = useState(0);
+  const [liveProgressStepIndex, setLiveProgressStepIndex] = useState(0);
+  const [liveProgressStatusText, setLiveProgressStatusText] = useState('');
+  const [pushNotificationToast, setPushNotificationToast] = useState<string | null>(null);
+  const [registrationToast, setRegistrationToast] = useState<string | null>(null);
+
   // Check live status from server database (VIP activation, Block status, Token updates)
   const checkLiveAgentStatus = async (wa: string) => {
     if (!wa) return;
@@ -308,13 +386,19 @@ export default function App() {
 
   // Generate Video with Gemini AI
   const handleGenerateVideo = async () => {
-    // Check if blocked by admin
+    // 1. Check if agent is registered - mandatory registration requirement!
+    if (!agent.isRegistered) {
+      setIsProfileModalOpen(true);
+      return;
+    }
+
+    // 2. Check if blocked by admin
     if (tokens.isBlocked) {
       alert('Akun Anda saat ini ditangguhkan / diblokir oleh Admin. Silakan hubungi CS di WhatsApp: 0896-7368-6625 untuk aktivasi kembali.');
       return;
     }
 
-    // Check tokens
+    // 3. Check tokens
     const { success, state: updatedTokens } = useOneToken();
     if (!success) {
       setIsUpgradeModalOpen(true);
@@ -322,11 +406,19 @@ export default function App() {
     }
     setTokens(updatedTokens);
 
+    // 4. Start Live Progress modal
     setIsLoading(true);
-    setLoadingStep('Menganalisis spesifikasi properti & foto...');
+    setIsLiveProgressOpen(true);
+    setLiveProgressPercent(14);
+    setLiveProgressStepIndex(0);
+    setLiveProgressStatusText('Menganalisis foto properti & sudut visual ruangan...');
 
     try {
-      setLoadingStep('AI meracik naskah narasi realistis & persuasif...');
+      await new Promise((r) => setTimeout(r, 450));
+      setLiveProgressPercent(32);
+      setLiveProgressStepIndex(1);
+      setLiveProgressStatusText('AI Scriptwriting narasi sinematik & hook emosional...');
+
       const response = await fetch('/api/generate-script', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -365,6 +457,26 @@ export default function App() {
         setGeneratedScript(generateIntelligentScript(formData, agent));
       }
 
+      setLiveProgressPercent(58);
+      setLiveProgressStepIndex(2);
+      setLiveProgressStatusText('Sinkronisasi karakter suara narator AI & audio ducking...');
+      await new Promise((r) => setTimeout(r, 450));
+
+      setLiveProgressPercent(78);
+      setLiveProgressStepIndex(3);
+      setLiveProgressStatusText('Penyusunan efek transisi sinematik & motion camera...');
+      await new Promise((r) => setTimeout(r, 450));
+
+      setLiveProgressPercent(92);
+      setLiveProgressStepIndex(4);
+      setLiveProgressStatusText('Rendering auto-subtitle karaoke & watermark agency...');
+      await new Promise((r) => setTimeout(r, 450));
+
+      setLiveProgressPercent(100);
+      setLiveProgressStepIndex(5);
+      setLiveProgressStatusText('Finalisasi video studio selesai! Membuka pratinjau otomatis...');
+      await new Promise((r) => setTimeout(r, 500));
+
       // Sync updated video count & tokens to server database
       fetch('/api/register-agent', {
         method: 'POST',
@@ -380,19 +492,36 @@ export default function App() {
         }),
       }).catch((e) => console.warn('Failed to sync token usage', e));
 
-      setLoadingStep('Menyiapkan audio visual studio...');
-      await new Promise((r) => setTimeout(r, 600));
-
-      setActiveView('studio');
+      // Close live progress modal
+      setIsLiveProgressOpen(false);
       setIsLoading(false);
+
+      // Trigger Push Notification & Audio Chime
+      playNotificationChime();
+      if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+        try {
+          new Notification('Video Promosi Selesai! 🎬🎉', {
+            body: `Video promosi ${formData.title} telah selesai dibuat! Pratinjau otomatis siap diputar sekarang.`,
+            icon: agent.agencyLogoUrl || '/favicon.ico',
+          });
+        } catch (e) {
+          console.warn('Native notification failed', e);
+        }
+      }
+
+      setPushNotificationToast(`🔔 Video promosi "${formData.title}" telah selesai dibuat! Menampilkan pratinjau otomatis sekarang.`);
+      setTimeout(() => setPushNotificationToast(null), 8000);
+
+      // Switch to studio view: video automatically appears in preview before download or share
+      setActiveView('studio');
 
       window.scrollTo({ top: 320, behavior: 'smooth' });
 
       try {
         confetti({
-          particleCount: 60,
-          spread: 60,
-          origin: { y: 0.6 },
+          particleCount: 80,
+          spread: 70,
+          origin: { y: 0.5 },
         });
       } catch (e) {
         // ignore
@@ -400,8 +529,9 @@ export default function App() {
     } catch (err) {
       console.warn('Script generation network error, using intelligent fallback', err);
       setGeneratedScript(generateIntelligentScript(formData, agent));
-      setActiveView('studio');
+      setIsLiveProgressOpen(false);
       setIsLoading(false);
+      setActiveView('studio');
       window.scrollTo({ top: 320, behavior: 'smooth' });
     }
   };
@@ -461,14 +591,25 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-['Plus_Jakarta_Sans'] selection:bg-amber-500 selection:text-slate-950">
-      {/* Top Sticky Navbar */}
+    <div className="min-h-screen bg-white text-slate-800 flex flex-col font-['Plus_Jakarta_Sans'] selection:bg-orange-500 selection:text-white">
+      {/* Top Sticky Navbar with Light Orange (Orange Muda) Navtab and Prev/Home/Next buttons */}
       <Navbar
         agent={agent}
         tokens={tokens}
+        currentPage={currentPage}
+        onGoHome={handleGoHome}
+        onGoPrev={handleGoPrev}
+        onGoNext={handleGoNext}
+        canGoPrev={currentPage !== 'home'}
+        canGoNext={currentPage !== 'pricing'}
         onOpenProfile={() => setIsProfileModalOpen(true)}
         onOpenUpgrade={() => setIsUpgradeModalOpen(true)}
-        onScrollToSection={handleScrollToSection}
+        onScrollToSection={(sectionId) => {
+          if (sectionId === 'hero') setCurrentPage('home');
+          if (sectionId === 'generator') setCurrentPage(activeView === 'studio' ? 'studio' : 'form');
+          if (sectionId === 'pricing' || sectionId === 'faq') setCurrentPage('pricing');
+          handleScrollToSection(sectionId);
+        }}
         onOpenAdmin={() => setIsAdminPinModalOpen(true)}
       />
 
@@ -491,11 +632,68 @@ export default function App() {
         </div>
       )}
 
+      {/* Global In-App Toast: Registration Success 'registrasi sukses ,silakan buat video sekarang' */}
+      {registrationToast && (
+        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-50 max-w-lg w-full px-4 animate-in slide-in-from-top-4 duration-300 pointer-events-auto">
+          <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 text-white shadow-2xl border-2 border-emerald-400 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-white text-emerald-700 flex items-center justify-center flex-shrink-0 font-black">
+                ✓
+              </div>
+              <div>
+                <p className="text-sm font-black capitalize tracking-wide">
+                  {registrationToast}
+                </p>
+                <p className="text-xs text-emerald-100">
+                  5 token demo telah aktif. Silakan pilih foto ruangan dan buat video promosi Anda!
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setRegistrationToast(null)}
+              className="p-1 rounded-lg hover:bg-white/20 text-white/80 hover:text-white cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Global In-App Floating Push Notification: Video Finished */}
+      {pushNotificationToast && (
+        <div className="fixed top-24 right-4 z-50 max-w-md w-full px-4 animate-in slide-in-from-right-4 duration-300 pointer-events-auto">
+          <div className="p-4 rounded-2xl bg-slate-900/95 backdrop-blur-md text-white shadow-2xl border-2 border-amber-500/70 flex items-start justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center flex-shrink-0 shadow-lg shadow-amber-500/40">
+                <Bell className="w-5 h-5 animate-bounce" />
+              </div>
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                  PUSH NOTIFIKASI
+                </span>
+                <p className="text-xs font-bold text-white mt-1">
+                  {pushNotificationToast}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setPushNotificationToast(null)}
+              className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       <main className="flex-1">
         {/* Landing Hero Section */}
         <LandingHero
           tokens={tokens}
+          agent={agent}
           onStartGenerator={() => {
+            setCurrentPage('form');
+            setActiveView('form');
             handleScrollToSection('generator');
           }}
           onOpenUpgrade={() => setIsUpgradeModalOpen(true)}
@@ -527,7 +725,12 @@ export default function App() {
               onOpenProfile={() => setIsProfileModalOpen(true)}
               onRegenerateScript={handleRegenerateScriptInStudio}
               isRegenerating={isLoading}
-              onBackToForm={() => setActiveView('form')}
+              onBackToForm={() => {
+                setActiveView('form');
+                setCurrentPage('form');
+                const el = document.getElementById('generator-section');
+                el?.scrollIntoView({ behavior: 'smooth' });
+              }}
             />
           )}
         </section>
@@ -538,6 +741,7 @@ export default function App() {
           onOpenUpgrade={() => setIsUpgradeModalOpen(true)}
           onStartGenerator={() => {
             setActiveView('form');
+            setCurrentPage('form');
             handleScrollToSection('generator');
           }}
         />
@@ -546,9 +750,77 @@ export default function App() {
         <TestimonialsFAQ />
       </main>
 
+      {/* Floating Bottom Quick Page Navigation Bar (Orange Muda theme) */}
+      <aside aria-label="Navigasi Halaman" className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 max-w-xl w-[94%] sm:w-auto px-4 py-2 rounded-2xl bg-orange-100/95 border-2 border-orange-300 shadow-xl backdrop-blur-md flex items-center justify-between sm:justify-center gap-2 sm:gap-3 transition-transform hover:scale-[1.01]">
+        {/* Button: Home */}
+        <button
+          type="button"
+          onClick={handleGoHome}
+          className={`px-3 py-1.5 rounded-xl font-bold text-xs sm:text-sm flex items-center gap-1.5 transition-all cursor-pointer ${
+            currentPage === 'home'
+              ? 'bg-orange-500 text-white shadow-xs'
+              : 'bg-white hover:bg-orange-50 text-orange-950 border border-orange-200 hover:border-orange-300'
+          }`}
+          title="Kembali ke Beranda (Home)"
+        >
+          <HomeIcon className="w-4 h-4" />
+          <span>Home</span>
+        </button>
+
+        {/* Button: Previous Page */}
+        <button
+          type="button"
+          onClick={handleGoPrev}
+          disabled={currentPage === 'home'}
+          className={`px-3 py-1.5 rounded-xl font-bold text-xs sm:text-sm flex items-center gap-1 transition-all ${
+            currentPage !== 'home'
+              ? 'bg-white hover:bg-orange-50 text-orange-950 border border-orange-200 hover:border-orange-300 cursor-pointer shadow-xs'
+              : 'bg-orange-100/60 text-orange-400 border border-transparent cursor-not-allowed opacity-50'
+          }`}
+          title="Halaman Sebelumnya (Previous Page)"
+        >
+          <ChevronLeft className="w-4 h-4" />
+          <span>Previous Page</span>
+        </button>
+
+        {/* Step Indicator */}
+        <div className="hidden md:flex items-center gap-1 text-[11px] font-bold text-orange-950 px-2.5 py-1 bg-orange-200/70 rounded-xl border border-orange-300/50">
+          <span>
+            {currentPage === 'home'
+              ? 'Hal 1/4: Beranda'
+              : currentPage === 'form'
+              ? 'Hal 2/4: Form & Upload'
+              : currentPage === 'studio'
+              ? 'Hal 3/4: Studio Video'
+              : 'Hal 4/4: Paket & FAQ'}
+          </span>
+        </div>
+
+        {/* Button: Next Page */}
+        <button
+          type="button"
+          onClick={handleGoNext}
+          disabled={currentPage === 'pricing'}
+          className={`px-3 py-1.5 rounded-xl font-bold text-xs sm:text-sm flex items-center gap-1 transition-all ${
+            currentPage !== 'pricing'
+              ? 'bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-xs cursor-pointer'
+              : 'bg-orange-100/60 text-orange-400 border border-transparent cursor-not-allowed opacity-50'
+          }`}
+          title="Halaman Berikutnya (Next Page)"
+        >
+          <span>Next Page</span>
+          <ChevronRight className="w-4 h-4" />
+        </button>
+      </aside>
+
       {/* Footer & Floating WhatsApp CTA */}
       <Footer
-        onScrollToSection={handleScrollToSection}
+        onScrollToSection={(id) => {
+          if (id === 'hero') setCurrentPage('home');
+          if (id === 'generator') setCurrentPage(activeView === 'studio' ? 'studio' : 'form');
+          if (id === 'pricing' || id === 'faq') setCurrentPage('pricing');
+          handleScrollToSection(id);
+        }}
         onOpenUpgrade={() => setIsUpgradeModalOpen(true)}
         onOpenProfile={() => setIsProfileModalOpen(true)}
         onOpenAdmin={() => setIsAdminPinModalOpen(true)}
@@ -563,6 +835,30 @@ export default function App() {
           setAgent(updated);
           checkLiveAgentStatus(updated.whatsapp);
         }}
+        onRegistrationSuccess={() => {
+          setRegistrationToast('registrasi sukses ,silakan buat video sekarang');
+          try {
+            confetti({
+              particleCount: 80,
+              spread: 70,
+              origin: { y: 0.5 },
+            });
+          } catch (e) {}
+          setTimeout(() => {
+            handleScrollToSection('generator');
+          }, 350);
+          setTimeout(() => setRegistrationToast(null), 8000);
+        }}
+      />
+
+      {/* Live Video Generation Progress Modal */}
+      <LiveProgressModal
+        isOpen={isLiveProgressOpen}
+        progressPercent={liveProgressPercent}
+        currentStepIndex={liveProgressStepIndex}
+        statusText={liveProgressStatusText}
+        agentName={agent.name}
+        propertyTitle={formData.title}
       />
 
       {/* VIP Unlimited Upgrade Modal */}
